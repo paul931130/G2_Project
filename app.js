@@ -13,7 +13,7 @@ const POEM_JSON_GENERATION_CONFIG = {
 };
 let geminiApiKey = sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
 let geminiApiKeyPrompted = false;
-const LOCAL_POEM_LIBRARY_VERSION = '20260603-output-format-v4';
+const LOCAL_POEM_LIBRARY_VERSION = '20260603-text-clean-v150';
 // 每次載入頁面都替 poems.json 自動加時間戳，避免瀏覽器吃到舊詩庫；使用者不用手動在網址後加 ?v=。
 const LOCAL_POEM_LIBRARY_URL = `poems.json?v=${LOCAL_POEM_LIBRARY_VERSION}&t=${Date.now()}`;
 let LOCAL_POEM_DATA = null;
@@ -504,14 +504,31 @@ function normalizePoemQuery(s) {
     .replace(/[\s　，。！？、；："'「」『』《》〈〉（）()·.・-]/g, '');
 }
 
-function cleanPoemLibraryText(s, maxChars = 180) {
-  let text = String(s || '')
+function isMostlyEnglishText(s) {
+  const text = String(s || '').trim();
+  if (!text) return false;
+  if (/^(英譯|英文|英文譯文|English translation)/iu.test(text)) return true;
+  const cjk = (text.match(/[\u3400-\u9fff]/gu) || []).length;
+  const latin = (text.match(/[A-Za-z]/gu) || []).length;
+  return latin >= 24 && cjk < 20 && latin > cjk * 1.15;
+}
+
+function stripLibraryHeadings(s) {
+  return String(s || '')
     .replace(/\r/g, '')
+    .replace(/(^|\n)\s*(譯文及注釋[一二三四五六七八九十]?|譯文[一二三四五六七八九十]?|直譯|韻譯|意譯|漢譯|注釋|註解|賞析[一二三四五六七八九十]?|鑑賞[一二三四五六七八九十]?|評析|創作背景|英文譯文|英文|英譯)\s*(?=\n|$)/gu, '\n')
+    .replace(/(^|\s)(譯文及注釋[一二三四五六七八九十]?|譯文[一二三四五六七八九十]?|直譯|韻譯|意譯|漢譯|注釋|註解|賞析[一二三四五六七八九十]?|鑑賞[一二三四五六七八九十]?|評析|創作背景|英文譯文|英文|英譯)(?=\s|$)/gu, ' ');
+}
+
+function cleanPoemLibraryText(s, maxChars = 180) {
+  let text = stripLibraryHeadings(s)
+    .replace(/[\u200B-\u200D\uFEFF]/gu, '')
     .replace(/\n+/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/賞析[一二三四]?\s*/g, '')
-    .replace(/譯文及注釋\s*/g, '')
-    .replace(/創作背景\s*/g, '')
+    .replace(/([\u3400-\u9fff])\s+([\u3400-\u9fff])/gu, '$1$2')
+    .replace(/([\u3400-\u9fff])\s+([\u3400-\u9fff])/gu, '$1$2')
+    .replace(/([，。！？；：、])\s+([\u3400-\u9fff])/gu, '$1$2')
+    .replace(/^[，、；：,.:。！？"'「」『』（）()\s]+/u, '')
     .trim();
 
   if (text.length > maxChars) {
@@ -520,10 +537,17 @@ function cleanPoemLibraryText(s, maxChars = 180) {
   return text;
 }
 
-function firstLibraryText(arr) {
-  return Array.isArray(arr)
-    ? String(arr.find(Boolean) || '').trim()
-    : String(arr || '').trim();
+function firstLibraryText(arr, options = {}) {
+  const source = Array.isArray(arr) ? arr : [arr];
+  const list = source.map(x => String(x || '').trim()).filter(Boolean);
+  if (options.prefer) {
+    const preferred = list.find(text => options.prefer.test(text) && !isMostlyEnglishText(text));
+    if (preferred) return preferred;
+  }
+  if (options.chineseOnly) {
+    return list.find(text => !isMostlyEnglishText(text)) || '';
+  }
+  return list[0] || '';
 }
 
 
@@ -622,19 +646,33 @@ function parseLibraryAuthor(raw) {
 }
 
 function extractLibraryTranslation(item) {
-  const raw = firstLibraryText(item.translations);
-  if (!raw) return '';
+  const candidates = Array.isArray(item?.translations) ? item.translations : [item?.translations];
 
-  const match = raw.match(/譯文\s*([\s\S]*?)(?:\n\s*注釋|\n\s*賞析|$)/u);
-  return cleanPoemLibraryText(match ? match[1] : raw, 220);
+  for (const candidate of candidates) {
+    const raw = String(candidate || '').replace(/\r/g, '').trim();
+    if (!raw || isMostlyEnglishText(raw)) continue;
+
+    const match = raw.match(/(?:^|\n)\s*(?:譯文[一二三四五六七八九十]?|直譯|韻譯|意譯|漢譯)\s*\n([\s\S]*?)(?=\n\s*(?:注釋|註解|賞析|鑑賞|評析|譯文及注釋[一二三四五六七八九十]?|譯文[一二三四五六七八九十]?|英文譯文|英文|英譯)\s*(?:\n|$)|$)/u);
+    let section = match ? match[1] : raw;
+    section = section
+      .replace(/[\u200B-\u200D\uFEFF]*\s*(?:注釋|註解)\s*[\s\S]*$/u, '')
+      .replace(/\n\s*(?:注釋|註解)[\s\S]*$/u, '');
+    const cleaned = cleanPoemLibraryText(section, 220);
+
+    if (cleaned && !isMostlyEnglishText(cleaned)) return cleaned;
+  }
+
+  return '';
 }
 
 function extractLibraryAnalysis(item) {
-  return cleanPoemLibraryText(firstLibraryText(item.analyses), 180);
+  return cleanPoemLibraryText(firstLibraryText(item.analyses, { chineseOnly: true }), 180);
 }
 
 function extractLibraryHistory(item) {
-  return cleanPoemLibraryText(firstLibraryText(item.others), 180);
+  const raw = firstLibraryText(item.others, { prefer: /創作背景/u, chineseOnly: true });
+  if (!raw || isMostlyEnglishText(raw)) return '';
+  return cleanPoemLibraryText(raw, 180);
 }
 
 function inferLibraryDevices(item) {

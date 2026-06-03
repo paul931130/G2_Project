@@ -11,13 +11,35 @@
 ├── poems.json              # 本機詩詞資料
 ├── README.md               # 專案說明
 ├── USER_GUIDE.md           # 使用者指南
+├── RELEASE_NOTES.md        # 發布版本紀錄
+├── CHANGELOG.md            # 完整更新紀錄
+├── CHECKSUMS.txt           # 發布檔案雜湊值
 └── docs/                   # 報告資料
-    ├── README.md           # docs資料夾說明
-    ├── USER_GUIDE.md       # 使用者指南
+    ├── README.md           # docs 資料夾說明
     ├── PROJECT_REPORT.md   # 專題報告 Markdown
-    └── SOUL.md             # 作者人格設定
+    ├── SOUL.md             # 作者人格設定
+    └── UPDATE_SUMMARY.md   # 本版整合更新與檢查摘要
 ```
 
+## 目前版本：v1.5.0
+
+本版已完整整合前面幾輪更新，並補齊說明文件，重點如下：
+
+- 前端拆分為 `index.html`、`style.css`、`app.js`、`poems.json`，便於 GitHub Pages 部署與後續維護。
+- 本機詩庫改為 `poems.json` lazy-load，不輸入 Gemini API Key 也能查詢唐詩。
+- 新增隨機召喚、收藏、複製、詩魂問答、雙魂對話與免費瀏覽器朗讀。
+- API Key 僅存 `sessionStorage`，關閉分頁後清除，不寫入 GitHub。
+- 修正 API 狀態、429 配額冷卻、手機版導覽、詩文白框高度與重複詩藏入口。
+- 修正原詩混入「一作／通／又作」等校勘註記的問題，校注會獨立顯示。
+- 修正 `poems.json` 快取問題，使用者不需要手動在網址後加版本參數。
+- 修正本機詩庫輸出清理，避免「譯文及注釋／注釋／註解／英譯」等原始資料標籤進入「詩魂自述」或「魂歸何處」。
+- 補強長篇題序分離，原詩直排區只保留詩句本體。
+- 更新 README、USER_GUIDE、RELEASE_NOTES、CHANGELOG 與 docs 文件，讓發布包內的說明與實際程式一致。
+
+完整版本紀錄請看：
+
+- `RELEASE_NOTES.md`：正式發布紀錄
+- `CHANGELOG.md`：完整更新紀錄
 
 ## 使用方式
 
@@ -30,7 +52,7 @@
 3. 可按「🎲 隨機一首」從本機詩庫抽出作品，不消耗 Gemini API。
 <img width="2529" height="1301" alt="image" src="https://github.com/user-attachments/assets/297e6cdd-dee5-4d36-bf80-ff6d94f576bb" />
 
-4. 若要使用 Gemini，點左側 `API KEY`，貼上 key 後會自動輕量測試一次；測試成功後即可使用 AI 分析與詩魂問答。- 輸出內容明確顯示來源：Gemini 或本機詩庫。
+4. 若要使用 Gemini，點左側 `API KEY`，貼上 key 後會自動輕量測試一次；測試成功後即可使用 AI 分析與詩魂問答。輸出內容會明確顯示來源：Gemini 或本機詩庫。
 <img width="972" height="534" alt="image" src="https://github.com/user-attachments/assets/931cf8f5-a607-4565-bf99-c984615ed436" />
 
 5. API 狀態條顯示已連線、僅本機或配額受限。
@@ -61,23 +83,25 @@
 
 目前 `poems.json` 主要收錄唐詩。本機模式無法查到宋詞或其他朝代作品，例如蘇軾、李清照的部分作品可能需要 Gemini API 才能生成解讀。
 
-## v1.2.0 修正重點
+## 版本更新摘要
 
-- 修正原文白色方框：依詩句長度自動調整高度，短詩不再硬撐，文字置中。
-- 修正隨機召喚：隨機詩來源為本機詩庫，但不再覆蓋 Gemini API 連線狀態。
-- 修正本機相近推薦：使用本機資料時不再誤顯示 API 未連線。
-- 優化手機版導覽列與操作按鈕，降低擋到標題或擠壓內容的機率。
-- 啟動時若本分頁已有暫存 API key，先維持已連線狀態，再背景輕量測試。
-  
-## v1.3.0 修正重點
-- 修正本機相近詩詞查無結果提示
-## v1.4.0 修正重點
+本專案目前已整合至 v1.5.0。完整版本演進如下：
 
-- 修正原詩正文混入校勘註記的問題，例如「(唯 通：惟)」、「(明年 一作：年年)」、「(顰 一作：蹙)」。
-- 新增「校注／異文」輸出區，將「通、一作、又作、版本」等括號註記自動從原詩分離。
-- 原詩直排區只保留真正詩句，避免長註解撐開版面或造成手機版排版錯位。
-- Gemini 輸出格式新增 `variantNotes` 欄位要求，避免 AI 把校勘文字塞回 `fullText`。
-- 修正 poems.json 快取問題，讀取本機詩庫時自動加入版本與時間戳，不需要手動在網址後加 `?v=`。
-- `index.html` 已更新 `app.js` 與 `style.css` 的版本參數，降低 GitHub Pages 或瀏覽器快取造成舊版程式未生效的機率。
-- 建議發布時覆蓋 `index.html`、`app.js`、`style.css`、`poems.json`。
+- **v1.0.0**：初版通靈問詩、詩魂互動、收藏、複製、Gemini API 查詢。
+- **v1.1.0**：拆分 `style.css` / `app.js` / `poems.json`，建立本機詩庫 lazy-load 與部署文件。
+- **v1.2.0**：修正手機版 UI、詩文白框、API 狀態、隨機召喚與重複詩藏入口；加入免費瀏覽器朗讀。
+- **v1.3.0**：改善本機相近作品推薦與錯誤提示流程。
+- **v1.4.0**：修正校注／異文混入原詩、`poems.json` 快取與前端資源版本問題。
+- **v1.4.1**：修正「詩魂自述」與「魂歸何處」誤顯示譯文標題、注釋標籤與英譯資料的問題。
+- **v1.5.0**：補強譯文清理，處理「註解」與 inline 注釋，將長篇題序移出原詩正文，並補齊發布說明文件。
 
+詳細內容請見 `RELEASE_NOTES.md` 與 `CHANGELOG.md`。
+
+## 期末展示文件
+
+本發布包已補齊 Week 16 成品展示與反思所需文件：
+
+- `docs/FINAL_REPORT.md` / `docs/FINAL_PROJECT_REPORT.docx`：期末專題報告
+- `docs/DEMO_VIDEO_SCRIPT.md` / `docs/DEMO_VIDEO_SCRIPT.docx`：Demo 影片腳本與現場展示流程
+- `docs/SUBMISSION_CHECKLIST.md`：提交與錄影前檢查清單
+- `RELEASE_NOTES.md` / `CHANGELOG.md`：完整更版紀錄
