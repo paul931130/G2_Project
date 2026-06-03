@@ -11,7 +11,7 @@
 ├── poems.json              # 本機詩詞資料
 ├── README.md               # 專案說明
 ├── USER_GUIDE.md           # 使用者指南
-└── docs/ #報告資料
+└── docs/                   # 報告資料
     ├── README.md           # docs資料夾說明
     ├── USER_GUIDE.md       # 使用者指南
     ├── PROJECT_REPORT.md   # 專題報告 Markdown
