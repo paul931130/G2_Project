@@ -757,6 +757,38 @@ body.loading-open{
   transition:height .25s ease;
 }
 
+
+/* v1.4.1 保留：橫排模式樣式；預設採直排伸縮 */
+.poem-text-wrap.layout-horizontal{
+  justify-content:flex-start;
+  align-items:flex-start;
+  overflow-x:hidden;
+  overflow-y:auto;
+  max-height:min(56vh, 560px);
+  min-height:0;
+  padding:.35rem .15rem .55rem;
+  scrollbar-width:thin;
+}
+
+.poem-text.layout-horizontal{
+  writing-mode:horizontal-tb;
+  text-orientation:mixed;
+  white-space:pre-line;
+  word-break:normal;
+  overflow-wrap:anywhere;
+  line-break:auto;
+  width:100%;
+  max-width:100%;
+  height:auto !important;
+  max-height:none;
+  font-size:18px;
+  line-height:2.05;
+  letter-spacing:1px;
+  text-align:left;
+  padding:.15rem .25rem;
+  box-sizing:border-box;
+}
+
 /* 中小螢幕改回上下排列，避免並排太擠 */
 @media (max-width:1120px){
   .poem-overview-grid{
@@ -1292,5 +1324,70 @@ body.loading-open{
   }
   .variant-title{
     letter-spacing:2px;
+  }
+}
+
+
+/* ══ v1.4.1：閱讀字級放大，改善桌機與手機可讀性 ══ */
+#poem-input{font-size:18px}
+#poem-input::placeholder{font-size:15px}
+.ex-btn{font-size:15px}
+.submit-btn{font-size:16px}
+
+.poem-title{font-size:34px}
+.poem-meta-info{font-size:18px}
+.poem-text{font-size:20px;line-height:2.15;letter-spacing:4px}
+.monologue-wrap{font-size:17px;line-height:2.05}
+.msg-bubble{font-size:16px;line-height:1.85}
+.chat-input{font-size:16px}
+.chat-input::placeholder{font-size:14px}
+.tab{font-size:13px}
+.sec-txt{font-size:17px;line-height:2}
+.sec-txt.sentence-break{line-height:2.1}
+.echo-txt{font-size:15.5px;line-height:1.9}
+.tag-item{font-size:13px}
+.emo-cell .ev{font-size:22px}
+.col-title{font-size:19px}
+.col-preview{font-size:13px}
+.d-bubble{font-size:16px;line-height:1.95}
+
+@media (max-width:640px){
+  .poem-text{font-size:19px;line-height:2.05;letter-spacing:3px}
+  .poem-title{font-size:24px}
+  .poem-meta-info{font-size:14px}
+  .monologue-wrap{font-size:16px;line-height:2}
+  .sec-txt{font-size:16px;line-height:1.95}
+  .sec-txt.sentence-break{line-height:2.05}
+  .msg-bubble{font-size:15px;line-height:1.85}
+  .chat-input{font-size:15px}
+  .tab{font-size:13px}
+  .echo-txt{font-size:15px}
+}
+
+
+/* ══ v1.4.1：原詩白框垂直伸縮，長詩維持直排閱讀 ══ */
+.poem-original-panel{
+  justify-content:flex-start;
+}
+.poem-text-wrap.layout-vertical{
+  justify-content:center;
+  align-items:center;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:.55rem 0 .8rem;
+}
+.poem-text.layout-vertical{
+  font-size:20px;
+  line-height:2.15;
+  letter-spacing:4px;
+}
+@media (max-width:640px){
+  .poem-text-wrap.layout-vertical{
+    padding:.45rem 0 .7rem;
+  }
+  .poem-text.layout-vertical{
+    font-size:19px;
+    line-height:2.05;
+    letter-spacing:3px;
   }
 }

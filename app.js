@@ -13,7 +13,7 @@ const POEM_JSON_GENERATION_CONFIG = {
 };
 let geminiApiKey = sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
 let geminiApiKeyPrompted = false;
-const LOCAL_POEM_LIBRARY_VERSION = '20260603-text-clean-v150';
+const LOCAL_POEM_LIBRARY_VERSION = '20260603-v141-final-display';
 // 每次載入頁面都替 poems.json 自動加時間戳，避免瀏覽器吃到舊詩庫；使用者不用手動在網址後加 ?v=。
 const LOCAL_POEM_LIBRARY_URL = `poems.json?v=${LOCAL_POEM_LIBRARY_VERSION}&t=${Date.now()}`;
 let LOCAL_POEM_DATA = null;
@@ -1394,6 +1394,14 @@ modernEcho：現代生活情境類比，15-30字。
   } finally { btn.disabled = false; }
 }
 
+
+function getPoemLayoutMode(rawText = '') {
+  // v1.4.1：原詩一律保留直排。
+  // 長詩不再自動切成橫排，而是讓原文白色方框依最長詩句垂直伸縮，
+  // 並保留橫向捲動，兼顧古典直排感與長篇閱讀穩定性。
+  return 'vertical';
+}
+
 function render(r, options = {}) {
   stopBrowserSpeech();
   const sourceKind = options.source === 'local' ? 'local' : 'gemini';
@@ -1401,6 +1409,7 @@ function render(r, options = {}) {
   const parsedPoemText = splitPoemTextAndVariantNotes(r.fullText || '', r.variantNotes || []);
   const displayFullText = parsedPoemText.fullText;
   const variantNotesHtml = renderVariantNotes(parsedPoemText.variantNotes);
+  const poemLayoutMode = getPoemLayoutMode(displayFullText);
 
   currentPoem = {
     title:r.title,
@@ -1426,11 +1435,11 @@ function render(r, options = {}) {
             <button class="tts-btn" type="button" data-action="speak-poem" data-idle-label="朗 讀">朗 讀</button>
             <div class="font-size-controls" aria-label="調整詩文字大小">
               <button class="font-size-btn" type="button" data-action="change-poem-font" data-delta="-1" title="縮小字體">字 小</button>
-              <span class="font-size-value" id="poem-font-size-value">17</span>
+              <span class="font-size-value" id="poem-font-size-value">20</span>
               <button class="font-size-btn" type="button" data-action="change-poem-font" data-delta="1" title="放大字體">字 大</button>
             </div>
           </div>
-          <div class="poem-text-wrap"><div class="poem-text">${escapeHTML(displayFullText)}</div></div>
+          <div class="poem-text-wrap layout-${poemLayoutMode}"><div class="poem-text layout-${poemLayoutMode}">${escapeHTML(displayFullText)}</div></div>
           ${variantNotesHtml}
         </section>
 
@@ -1440,7 +1449,7 @@ function render(r, options = {}) {
               <div class="reveal-label">— 詩 魂 現 身 —</div>
               <div class="font-size-controls title-font-controls" aria-label="調整篇名字大小">
                 <button class="font-size-btn" type="button" data-action="change-title-font" data-delta="-1" title="縮小篇名">字 小</button>
-                <span class="font-size-value" id="title-font-size-value">32</span>
+                <span class="font-size-value" id="title-font-size-value">34</span>
                 <button class="font-size-btn" type="button" data-action="change-title-font" data-delta="1" title="放大篇名">字 大</button>
               </div>
             </div>
@@ -1538,29 +1547,34 @@ function render(r, options = {}) {
 
 let poemResizeTimer = null;
 
-let poemFontSize = Number(localStorage.getItem('poemlens_poem_font_size') || 17);
-let titleFontSize = Number(localStorage.getItem('poemlens_title_font_size') || 32);
+let poemFontSize = Number(localStorage.getItem('poemlens_poem_font_size_v141') || 20);
+let titleFontSize = Number(localStorage.getItem('poemlens_title_font_size_v141') || 34);
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
 function applyPoemFontSize() {
-  poemFontSize = clamp(poemFontSize, 14, 26);
+  poemFontSize = clamp(poemFontSize, 16, 28);
   document.documentElement.style.setProperty('--dynamic-poem-font-size', `${poemFontSize}px`);
 
   const textEl = document.querySelector('.poem-text');
-  if (textEl) textEl.style.fontSize = `${poemFontSize}px`;
+  if (textEl) {
+    const adjustedSize = textEl.classList.contains('layout-horizontal')
+      ? clamp(poemFontSize - 2, 15, 24)
+      : poemFontSize;
+    textEl.style.fontSize = `${adjustedSize}px`;
+  }
 
   const label = document.getElementById('poem-font-size-value');
   if (label) label.textContent = poemFontSize;
 
-  localStorage.setItem('poemlens_poem_font_size', poemFontSize);
+  localStorage.setItem('poemlens_poem_font_size_v141', poemFontSize);
   fitPoemLayout();
 }
 
 function applyTitleFontSize() {
-  titleFontSize = clamp(titleFontSize, 18, 32);
+  titleFontSize = clamp(titleFontSize, 22, 38);
 
   const titleEl = document.querySelector('.poem-title');
   if (titleEl) titleEl.style.fontSize = `${titleFontSize}px`;
@@ -1568,14 +1582,14 @@ function applyTitleFontSize() {
   // 作者朝代跟著篇名字級小幅調整，保持比例
   const metaEl = document.querySelector('.poem-meta-info');
   if (metaEl) {
-    const metaSize = clamp(Math.round(titleFontSize * 0.54), 11, 17);
+    const metaSize = clamp(Math.round(titleFontSize * 0.54), 12, 20);
     metaEl.style.fontSize = `${metaSize}px`;
   }
 
   const label = document.getElementById('title-font-size-value');
   if (label) label.textContent = titleFontSize;
 
-  localStorage.setItem('poemlens_title_font_size', titleFontSize);
+  localStorage.setItem('poemlens_title_font_size_v141', titleFontSize);
   fitPoemTitleLayout();
 }
 
@@ -1609,8 +1623,18 @@ function fitPoemLayout() {
   const text = document.querySelector('.poem-text');
   if (!wrap || !text) return;
 
+  if (text.classList.contains('layout-horizontal')) {
+    text.style.height = 'auto';
+    text.style.width = '100%';
+    wrap.style.minHeight = '0';
+    wrap.style.alignItems = 'flex-start';
+    wrap.style.justifyContent = 'flex-start';
+    wrap.scrollLeft = 0;
+    return;
+  }
+
   const style = getComputedStyle(text);
-  const fontSize = parseFloat(style.fontSize) || 17;
+  const fontSize = parseFloat(style.fontSize) || 20;
   const letterSpacing = parseFloat(style.letterSpacing) || 4;
   const isSmallScreen = window.innerWidth <= 640;
 
@@ -1629,8 +1653,12 @@ function fitPoemLayout() {
   const charPitch = fontSize + letterSpacing + 1;
   let h = Math.ceil(maxChars * charPitch + (isSmallScreen ? 18 : 22));
 
-  // 左側原文白框依最長詩句自動收縮／展開；長詞仍保留可讀上限。
-  h = Math.max(isSmallScreen ? 132 : 148, Math.min(h, isSmallScreen ? 330 : 360));
+  // v1.4.1：左側原文白框依最長詩句垂直伸縮。
+  // 不再硬壓在 330~360px，避免長句被迫分裂成過多直欄。
+  const viewportCap = Math.floor(window.innerHeight * (isSmallScreen ? 0.62 : 0.72));
+  const absoluteCap = isSmallScreen ? 620 : 760;
+  const softCap = Math.max(isSmallScreen ? 360 : 420, Math.min(viewportCap, absoluteCap));
+  h = Math.max(isSmallScreen ? 160 : 190, Math.min(h, softCap));
 
   text.style.height = `${h}px`;
   wrap.style.minHeight = `${h}px`;
