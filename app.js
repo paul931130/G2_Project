@@ -13,7 +13,8 @@ const POEM_JSON_GENERATION_CONFIG = {
 };
 let geminiApiKey = sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
 let geminiApiKeyPrompted = false;
-const LOCAL_POEM_LIBRARY_URL = 'poems.json';
+const LOCAL_POEM_LIBRARY_VERSION = '20260603-output-format-v3';
+const LOCAL_POEM_LIBRARY_URL = `poems.json?v=${LOCAL_POEM_LIBRARY_VERSION}`;
 let LOCAL_POEM_DATA = null;
 let localPoemDataLoadPromise = null;
 let localPoemDataLoadError = '';
@@ -755,7 +756,7 @@ async function ensureLocalPoemDataLoaded() {
   localPoemDataLoadPromise = (async () => {
     localPoemDataAttempted = true;
     try {
-      const resp = await fetchWithTimeout(LOCAL_POEM_LIBRARY_URL, { cache:'force-cache' });
+      const resp = await fetchWithTimeout(LOCAL_POEM_LIBRARY_URL, { cache:'no-store' });
       if (!resp.ok) throw new Error(`LOCAL_POEM_LIBRARY_HTTP_${resp.status}`);
       const json = await resp.json();
       LOCAL_POEM_DATA = normalizeLocalPoemLibrary(json);
