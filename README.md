@@ -1,23 +1,6 @@
 # 詩境｜生成式 AI 古典詩詞互動系統
 
-「詩境」是一個結合本機唐詩資料庫與 Gemini API，讓使用者用作者、篇名、詩句片段或意境描述召喚詩作，並以「詩魂現身」的方式閱讀古典詩詞的介面。
-
-<img width="2528" height="1308" alt="image" src="https://github.com/user-attachments/assets/e3931340-7cf6-460f-b0c4-020ad1881705" />
-
-
-## 專案特色
-
-- 本機 `poems.json` 優先查詢，減少 API 消耗。
-- 「🎲 隨機一首」可從本機詩庫快速召喚作品。
-- 詩作原文與詩魂自語支援免費瀏覽器朗讀。
-- Gemini API 可補足意境式查詢與詩魂問答。
-- API Key 只存 `sessionStorage`，關閉分頁後清除。
-- 貼上 Gemini API Key 後會延遲自動輕量測試一次；同一把 key 不重複測，遇到 `Too many requests / 429` 會暫停自動測試 60 秒。
-- 明確顯示來源：Gemini 或本機詩庫。
-- API 狀態條顯示已連線、僅本機或配額受限。
-- 錯誤卡提供重試 API、切換 API Key、推薦本機類似文章。
-- 支援收藏詩作與複製詩作。
-- CSS/JS 已拆分，適合 GitHub Pages 靜態部署。
+「詩境」是一個結合 Gemini API 與 本機唐詩資料庫，讓使用者用作者、篇名、詩句片段或意境描述召喚詩作，並以「詩魂現身」的方式閱讀古典詩詞的網頁。
 
 ## 檔案結構
 
@@ -39,18 +22,36 @@
 ## 使用方式
 
 1. 開啟網站。
-2. 可先不輸入 API Key，直接查詢本機詩庫，例如：`靜夜思`、`石壕吏`、`床前明月光`。
+<img width="2528" height="1301" alt="image" src="https://github.com/user-attachments/assets/d59bb710-4407-4318-829f-35e92e0018b0" />
+
+2. 可先不輸入 API Key，直接查詢本機詩庫，例如：`靜夜思`、`石壕吏`、`床前明月光`等資料庫有涵蓋的作品。
+<img width="1721" height="1109" alt="image" src="https://github.com/user-attachments/assets/e5f20d61-602c-4e4e-9385-e1fba9340f0b" />
+
 3. 可按「🎲 隨機一首」從本機詩庫抽出作品，不消耗 Gemini API。
-4. 查到詩後，可按「朗讀」使用瀏覽器內建語音朗讀詩文或詩魂自語。
-5. 若要使用 Gemini，點左側 `API KEY`，貼上 key 後會自動輕量測試一次；測試成功後即可使用 AI 分析與詩魂問答。
-6. 查到詩後可切換分析頁籤、向詩魂提問、收藏或複製詩作。
-7. 可到「雙魂對話」選兩位詩人，輸入主題後生成對話。
+<img width="2529" height="1301" alt="image" src="https://github.com/user-attachments/assets/297e6cdd-dee5-4d36-bf80-ff6d94f576bb" />
+4. 若要使用 Gemini，點左側 `API KEY`，貼上 key 後會自動輕量測試一次；測試成功後即可使用 AI 分析與詩魂問答。- 輸出內容明確顯示來源：Gemini 或本機詩庫。
+<img width="972" height="534" alt="image" src="https://github.com/user-attachments/assets/931cf8f5-a607-4565-bf99-c984615ed436" />
+5. API 狀態條顯示已連線、僅本機或配額受限。
+<img width="323" height="241" alt="image" src="https://github.com/user-attachments/assets/75483810-a8cb-431a-be12-f4c21f4ad253" />
+<img width="339" height="220" alt="image" src="https://github.com/user-attachments/assets/f1a1690d-64e6-4f50-a777-9224846bf134" />
+<img width="337" height="236" alt="image" src="https://github.com/user-attachments/assets/170d05c0-e255-4acc-addb-29b6c0716a11" />
+5. 發生連線錯誤時，提供重試 API、切換 API Key、推薦本機類似文章。
+<img width="1702" height="293" alt="image" src="https://github.com/user-attachments/assets/68b37c13-4426-44da-a74f-806210eae458" />
+6. 查到詩後，可按「朗讀」使用瀏覽器內建語音朗讀詩文或詩魂自語。
+<img width="1621" height="369" alt="image" src="https://github.com/user-attachments/assets/96ebc36a-42be-4acd-b8ee-3d57c76281b2" />
+<img width="1621" height="360" alt="image" src="https://github.com/user-attachments/assets/f14bb44e-bf6d-49ff-99a7-935f5ecc9928" />
+7. 可切換分析頁籤、向詩魂提問、收藏或複製詩作。
+<img width="1866" height="601" alt="image" src="https://github.com/user-attachments/assets/e7be617a-b2d3-4d8f-a6da-3f421f14ef85" />
+<img width="1943" height="658" alt="image" src="https://github.com/user-attachments/assets/6ce6fb07-96cc-489e-ab08-56920a1ee271" />
+<img width="524" height="661" alt="image" src="https://github.com/user-attachments/assets/cbc4ef47-53d9-4f42-9245-833636bb1556" />
+8. 可到「雙魂對話」選兩位詩人，輸入主題後生成對話。
+<img width="2491" height="1292" alt="image" src="https://github.com/user-attachments/assets/4c3ae003-845a-4f79-9b2e-b35f9f40629e" />
+9. API Key 只存 `sessionStorage`，關閉分頁後清除。
+<img width="1745" height="901" alt="image" src="https://github.com/user-attachments/assets/7068900a-9ec3-4dfe-9eed-66ecfb2268e7" />
 
 ## 本機詩庫限制
 
-目前 `poems.json` 主要收錄唐詩。本機模式不一定能查到宋詞或其他朝代作品，例如蘇軾、李清照的部分作品可能需要 Gemini API 才能生成解讀。
-
-
+目前 `poems.json` 主要收錄唐詩。本機模式無法查到宋詞或其他朝代作品，例如蘇軾、李清照的部分作品可能需要 Gemini API 才能生成解讀。
 
 ## v1.2.0 修正重點
 
