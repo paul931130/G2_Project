@@ -1256,3 +1256,118 @@ body.loading-open{
     padding:2px 5px;
   }
 }
+
+/* ══ 本機詩庫候選結果：避免查無結果直接斷線 ══ */
+.enhanced-error {
+  text-align: left;
+}
+
+.local-candidates,
+.local-empty-hint {
+  margin: 18px auto 4px;
+  max-width: 760px;
+  padding: 16px;
+  border: 1px solid rgba(151, 108, 74, 0.22);
+  border-radius: 18px;
+  background: rgba(255, 252, 246, 0.72);
+}
+
+.local-candidates-title,
+.local-empty-title {
+  font-family: var(--font-serif);
+  font-weight: 800;
+  letter-spacing: .08em;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.local-candidates-sub,
+.local-empty-text,
+.error-hint {
+  font-size: .88rem;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.local-candidate-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.local-candidate-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid rgba(151, 108, 74, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  cursor: pointer;
+  text-align: left;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.local-candidate-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(151, 108, 74, 0.36);
+  box-shadow: 0 10px 28px rgba(87, 57, 34, 0.08);
+}
+
+.local-candidate-rank {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(122, 74, 43, 0.1);
+  color: var(--accent);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.local-candidate-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.local-candidate-title {
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.local-candidate-meta,
+.local-candidate-line {
+  font-size: .86rem;
+  color: var(--muted);
+}
+
+.local-candidate-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .local-candidates,
+  .local-empty-hint {
+    padding: 13px;
+    border-radius: 14px;
+  }
+
+  .local-candidate-item {
+    grid-template-columns: 28px 1fr;
+    padding: 11px 12px;
+  }
+
+  .local-candidate-rank {
+    width: 24px;
+    height: 24px;
+  }
+}

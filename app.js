@@ -199,6 +199,7 @@ function handleApiKeyInput() {
 }
 
 let lastFailedPoemQuery = '';
+let lastLocalCandidates = [];
 
 function setApiStatus(status) {
   const normalized = status === 'connected' || status === 'limited' ? status : 'local';
@@ -372,6 +373,12 @@ async function callGeminiWithRetry(contents, maxRetries = 4, requestOptions = {}
 
 function friendlyApiError(e) {
   const msg = String(e?.message || '');
+  if (msg.includes('LOCAL_LIBRARY_CANDIDATES')) {
+    return '本機詩庫已找到可能相關作品，可先從候選結果開啟。';
+  }
+  if (msg.includes('LOCAL_LIBRARY_NO_MATCH')) {
+    return '本機詩庫沒有找到可判定的相近作品。';
+  }
   if (msg.includes('API_KEY_MISSING')) {
     return '尚未輸入 Gemini API key；目前只使用本機詩庫。';
   }
@@ -626,6 +633,12 @@ function scoreLibraryPoem(item, q, loose = false) {
   const era = normalizePoemQuery(dynasty);
   const lines = Array.isArray(item.content) ? item.content.map(normalizePoemQuery).filter(Boolean) : [];
   const fullText = normalizePoemQuery(lines.join(''));
+  const metaText = normalizePoemQuery([
+    ...(Array.isArray(item.translations) ? item.translations : []),
+    ...(Array.isArray(item.notes) ? item.notes : []),
+    ...(Array.isArray(item.analyses) ? item.analyses : []),
+    ...(Array.isArray(item.others) ? item.others : [])
+  ].join(''));
   let score = 0;
 
   if (q === title) score = Math.max(score, 180);
@@ -643,6 +656,17 @@ function scoreLibraryPoem(item, q, loose = false) {
   if (era && q === era) score = Math.max(score, 40);
 
   if (loose && fullText.includes(q) && q.length >= 2) score = Math.max(score, 80 + q.length);
+  if (loose && metaText.includes(q) && q.length >= 2) score = Math.max(score, 62 + q.length);
+
+  // 主題或意境查詢通常不會完整出現在詩句中；用字元重疊做低權重召回。
+  if (loose && q.length >= 2) {
+    const haystack = `${title}${writer}${era}${fullText}${metaText}`;
+    const chars = [...new Set(q)].filter(ch => !/[\s，。！？、；：,.!?;:《》〈〉「」『』()（）]/.test(ch));
+    const hits = chars.filter(ch => haystack.includes(ch)).length;
+    if (chars.length >= 2 && hits >= Math.ceil(chars.length * 0.6)) {
+      score = Math.max(score, 24 + hits * 8);
+    }
+  }
 
   return score;
 }
@@ -695,6 +719,24 @@ function getLibraryPoemFromLoadedData(input, options = {}) {
   });
 
   return best ? libraryItemToRenderPoem(best.item) : null;
+}
+
+function getLibraryCandidatesFromLoadedData(input, options = {}) {
+  const q = normalizePoemQuery(input);
+  const limit = Number(options.limit || 6);
+  if (!q || !Array.isArray(LOCAL_POEM_DATA) || !LOCAL_POEM_DATA.length) return [];
+
+  return LOCAL_POEM_DATA
+    .map((item, index) => ({ item, index, score: scoreLibraryPoem(item, q, true) }))
+    .filter(row => row.score > 0 && row.item?.title && Array.isArray(row.item?.content))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, limit);
+}
+
+async function getLocalPoemCandidates(input, options = {}) {
+  const data = await ensureLocalPoemDataLoaded();
+  if (!data.length) return [];
+  return getLibraryCandidatesFromLoadedData(input, options);
 }
 
 async function getLibraryPoem(input, options = {}) {
@@ -882,19 +924,59 @@ function showLocalRecommendNotice(query) {
   appendPoemNotice(`本機推薦：依「${query}」關鍵字相近度顯示，未消耗 Gemini API。`);
 }
 
-function renderActionableErrorCard(query, err) {
+function renderLocalCandidateList(query, candidates) {
+  if (!candidates.length) {
+    const loadHint = localPoemDataLoadError
+      ? `<div class="error-hint">poems.json 載入狀態：${escapeHTML(localPoemDataLoadError)}</div>`
+      : '';
+    return `
+      <div class="local-empty-hint">
+        <div class="local-empty-title">本機詩庫沒有找到可判定的相近作品</div>
+        <div class="local-empty-text">可改用更明確的「詩名、作者、完整詩句片段」，或設定 Gemini API Key 查詢詩庫外作品。</div>
+        ${loadHint}
+      </div>`;
+  }
+
+  return `
+    <div class="local-candidates">
+      <div class="local-candidates-title">本機詩庫候選結果</div>
+      <div class="local-candidates-sub">依「${escapeHTML(query)}」從 poems.json 先召回可能相關作品，點選即可開啟。</div>
+      <div class="local-candidate-list">
+        ${candidates.map((row, i) => {
+          const { author, dynasty } = parseLibraryAuthor(row.item.author);
+          const firstLine = Array.isArray(row.item.content) ? row.item.content[0] || '' : '';
+          return `
+            <button class="local-candidate-item" type="button" data-action="open-local-candidate" data-candidate-index="${i}">
+              <span class="local-candidate-rank">${i + 1}</span>
+              <span class="local-candidate-main">
+                <span class="local-candidate-title">${escapeHTML(row.item.title || '未題')}</span>
+                <span class="local-candidate-meta">${escapeHTML(author || '佚名')}・${escapeHTML(dynasty || '未詳')}</span>
+                <span class="local-candidate-line">${escapeHTML(firstLine)}</span>
+              </span>
+            </button>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function renderActionableErrorCard(query, err, candidates = []) {
   const output = document.getElementById('output');
   if (!output) return;
   const safeQuery = escapeHTML(query || '');
+  lastLocalCandidates = candidates;
+  const hasCandidates = candidates.length > 0;
+
   output.innerHTML = `
-    <div class="error">
-      <div class="error-title">詩 魂 今 夜 未 現，請 再 試 一 次</div>
+    <div class="error enhanced-error">
+      <div class="error-title">${hasCandidates ? 'Gemini 暫時無法回應，先顯示本機候選' : '查 無 明 確 相 近 作 品'}</div>
       <div class="error-detail" id="error-detail">${escapeHTML(friendlyApiError(err))}</div>
       <div class="error-query">查 詢：${safeQuery || '（無）'}</div>
+      ${renderLocalCandidateList(query, candidates)}
       <div class="error-actions">
         <button class="error-btn" type="button" data-action="retry-summon">重試 API</button>
         <button class="error-btn" type="button" data-action="switch-api-key">切換新的 API Key</button>
-        <button class="error-btn" type="button" data-action="recommend-local-similar">推薦本機類似文章</button>
+        <button class="error-btn" type="button" data-action="recommend-local-similar">重新搜尋本機候選</button>
+        <button class="error-btn" type="button" data-action="random-poem">隨機召喚一首</button>
       </div>
     </div>`;
 }
@@ -915,25 +997,35 @@ async function recommendLocalSimilarFromError() {
   const query = (input?.value || lastFailedPoemQuery || '').trim();
   if (!query) return;
 
-  const localPoem = await getLocalPoem(query, { loose:true });
-  if (!localPoem) {
+  const candidates = await getLocalPoemCandidates(query, { limit:6 });
+  if (!candidates.length) {
     const detail = document.getElementById('error-detail');
     if (detail) {
       const suffix = localPoemDataLoadError
         ? `（poems.json 載入失敗：${localPoemDataLoadError}）`
         : '';
-      detail.textContent = `本機詩庫未找到相近作品，請換關鍵字或作者名。${suffix}`;
+      detail.textContent = `本機詩庫沒有找到可判定的相近作品；可輸入詩名、作者或較完整的詩句片段。${suffix}`;
     }
+    renderActionableErrorCard(query, new Error('LOCAL_LIBRARY_NO_MATCH'), []);
     return;
   }
-  render(localPoem, { source:'local' });
-  showLocalRecommendNotice(query);
-  // 推薦本機相近作品不應覆蓋既有 Gemini API 狀態。
+
+  renderActionableErrorCard(query, new Error('LOCAL_LIBRARY_CANDIDATES'), candidates);
+  showToast(`找到 ${candidates.length} 個本機候選。`, 'ok');
+}
+
+function openLocalCandidate(candidateIndex) {
+  const row = lastLocalCandidates[Number(candidateIndex)];
+  if (!row?.item) return;
+  const poem = libraryItemToRenderPoem(row.item);
+  render(poem, { source:'local' });
+  showLocalRecommendNotice(poem.title);
   setTimeout(() => {
     const poemCard = document.querySelector('.poem-scroll') || document.getElementById('output');
     smoothScrollToElement(poemCard, { block:'start', duration:920 });
   }, 160);
 }
+
 
 // ══ 柔順捲動工具 ══
 function smoothScrollToElement(el, options = {}) {
@@ -1251,7 +1343,8 @@ modernEcho：現代生活情境類比，15-30字。
       }, 160);
     } else {
       lastFailedPoemQuery = input;
-      renderActionableErrorCard(input, e);
+      const candidates = await getLocalPoemCandidates(input, { limit:6 });
+      renderActionableErrorCard(input, e, candidates);
     }
   } finally { btn.disabled = false; }
 }
@@ -1676,6 +1769,8 @@ function bindStaticEvents() {
       switchApiKeyFromError();
     } else if (action === 'recommend-local-similar') {
       recommendLocalSimilarFromError();
+    } else if (action === 'open-local-candidate') {
+      openLocalCandidate(actionEl.dataset.candidateIndex);
     } else if (action === 'load-poem') {
       loadPoem(Number(actionEl.dataset.index));
     } else if (action === 'delete-collection') {
