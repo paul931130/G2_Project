@@ -474,11 +474,17 @@ function hasBadPoemText(text) {
 }
 
 function normalizeGeminiPoemResult(r) {
-  if (hasBadPoemText(r?.fullText)) {
+  const parsed = splitPoemTextAndVariantNotes(r?.fullText || '', r?.variantNotes || []);
+
+  if (hasBadPoemText(parsed.fullText)) {
     throw new Error('GEMINI_BAD_POEM_TEXT：Gemini 原文欄位含大量非中文或疑似亂碼');
   }
 
-  return r;
+  return {
+    ...r,
+    fullText: parsed.fullText,
+    variantNotes: parsed.variantNotes
+  };
 }
 
 async function requestPoemJson(prompt, model = GEMINI_MODEL) {
@@ -518,6 +524,90 @@ function firstLibraryText(arr) {
     : String(arr || '').trim();
 }
 
+
+function uniqueVariantNotes(notes = []) {
+  const seen = new Set();
+  return notes
+    .map(note => String(note || '').trim())
+    .filter(note => {
+      if (!note || seen.has(note)) return false;
+      seen.add(note);
+      return true;
+    });
+}
+
+function formatVariantNote(note) {
+  const stripQuote = value => String(value || '')
+    .replace(/^[「『“"']+|[」』”"']+$/gu, '')
+    .trim();
+
+  const text = String(note || '')
+    .replace(/\s+/g, ' ')
+    .replace(/[，,。；;]+$/u, '')
+    .trim();
+
+  if (!text) return '';
+
+  let match = text.match(/^(.+?)\s*通\s*[:：]\s*(.+)$/u);
+  if (match) {
+    return `${stripQuote(match[1])}，通「${stripQuote(match[2])}」。`;
+  }
+
+  match = text.match(/^(.+?)\s*(一作|又作|或作|原作|一云|一曰)\s*[:：]\s*(.+)$/u);
+  if (match) {
+    const label = match[2] === '一云' || match[2] === '一曰' ? '一作' : match[2];
+    return `${stripQuote(match[1])}，${label}「${stripQuote(match[3])}」。`;
+  }
+
+  return text.endsWith('。') ? text : `${text}。`;
+}
+
+function splitPoemContentAndNotes(content = []) {
+  const sourceLines = Array.isArray(content)
+    ? content
+    : String(content || '').split(/\n+/);
+  const variantNotes = [];
+
+  const cleanContent = sourceLines
+    .map(line => String(line || '')
+      .replace(/\s*[（(]([^）)]*(?:一作|又作|或作|通\s*[:：]|版本|原作|一云|一曰)[^）)]*)[）)]/gu, (_, note) => {
+        const formatted = formatVariantNote(note);
+        if (formatted) variantNotes.push(formatted);
+        return '';
+      })
+      .trim())
+    .filter(Boolean);
+
+  return {
+    content: cleanContent,
+    variantNotes: uniqueVariantNotes(variantNotes)
+  };
+}
+
+function splitPoemTextAndVariantNotes(fullText = '', extraNotes = []) {
+  const parsed = splitPoemContentAndNotes(String(fullText || '').split(/\n+/));
+  const incomingNotes = Array.isArray(extraNotes)
+    ? extraNotes
+    : (extraNotes ? [extraNotes] : []);
+
+  return {
+    fullText: parsed.content.join('\n'),
+    variantNotes: uniqueVariantNotes([...incomingNotes, ...parsed.variantNotes])
+  };
+}
+
+function renderVariantNotes(notes = []) {
+  const list = uniqueVariantNotes(notes);
+  if (!list.length) return '';
+
+  return `
+    <div class="variant-notes" aria-label="校注與異文">
+      <div class="variant-title">校 注 ／ 異 文</div>
+      ${list.map(note => `<div class="variant-note">${escapeHTML(note)}</div>`).join('')}
+    </div>
+  `;
+}
+
 function parseLibraryAuthor(raw) {
   const text = String(raw || '').replace(/\r/g, '').trim();
   const parts = text.split(/[：:]/).map(p => p.replace(/\s+/g, '').trim()).filter(Boolean);
@@ -546,7 +636,7 @@ function extractLibraryHistory(item) {
 }
 
 function inferLibraryDevices(item) {
-  const lines = Array.isArray(item.content) ? item.content : [];
+  const lines = splitPoemContentAndNotes(item.content).content;
   const firstLine = normalizePoemQuery(lines[0] || '');
   const charCount = Array.from(firstLine).length;
   const devices = [];
@@ -564,7 +654,8 @@ function inferLibraryDevices(item) {
 }
 
 function inferLibraryEmotion(item) {
-  const text = `${item.title || ''}${(item.content || []).join('')}${firstLibraryText(item.analyses)}`;
+  const cleanLines = splitPoemContentAndNotes(item.content).content;
+  const text = `${item.title || ''}${cleanLines.join('')}${firstLibraryText(item.analyses)}`;
   let primary = '含蓄詩情';
   let intensity = '中等';
   let modernEcho = '像在日常片刻中忽然被一句話照見心事，安靜卻久久不散。';
@@ -596,7 +687,8 @@ function inferLibraryEmotion(item) {
 
 function libraryItemToRenderPoem(item) {
   const { author, dynasty } = parseLibraryAuthor(item.author);
-  const lines = Array.isArray(item.content) ? item.content.filter(Boolean) : [];
+  const parsedContent = splitPoemContentAndNotes(item.content);
+  const lines = parsedContent.content;
   const fullText = lines.join('\n');
   const analysis = extractLibraryAnalysis(item);
   const history = extractLibraryHistory(item);
@@ -606,6 +698,7 @@ function libraryItemToRenderPoem(item) {
     author,
     dynasty,
     fullText,
+    variantNotes: parsedContent.variantNotes,
     monologue: `吾作《${item.title || '此詩'}》，把「${lines[0] || '眼前景'}」藏入開篇，又讓「${lines[lines.length - 1] || '心中意'}」收束餘韻。汝若問此詩，先從景中看情，再從短句裡聽未盡之聲。`,
     semantic: {
       translation: extractLibraryTranslation(item) || `本機詩庫收錄《${item.title || '此詩'}》原文。此處未附完整譯文，可先依詩句意象理解其情境與轉折。`,
@@ -624,7 +717,7 @@ function scoreLibraryPoem(item, q, loose = false) {
   const title = normalizePoemQuery(item.title);
   const writer = normalizePoemQuery(author);
   const era = normalizePoemQuery(dynasty);
-  const lines = Array.isArray(item.content) ? item.content.map(normalizePoemQuery).filter(Boolean) : [];
+  const lines = splitPoemContentAndNotes(item.content).content.map(normalizePoemQuery).filter(Boolean);
   const fullText = normalizePoemQuery(lines.join(''));
   let score = 0;
 
@@ -1220,13 +1313,15 @@ async function summon() {
   const prompt = `你是中國古典詩詞資料查詢器。使用者輸入可能是作者名、詩句片段、詩名或意境描述。
 使用者輸入：「${input}」
 嚴格只回傳一個 JSON object，不要 markdown 標記，不要額外解釋。
-fullText 只能放詩詞原文，不可放翻譯、注釋、英文、拼音、賞析或資料來源。
+fullText 只能放詩詞原文，不可放翻譯、注釋、英文、拼音、賞析或資料來源；若有「一作／又作／通」等校勘文字，放到 variantNotes。
+variantNotes：只放異文或校勘註，可為空陣列。
 所有說明欄位保持精簡，避免長篇賞析。
 monologue：詩人第一人稱半文半白獨白，30-55字。
 modernEcho：現代生活情境類比，15-30字。
 {
   "title":"詩名","author":"作者","dynasty":"朝代",
   "fullText":"原文句間用\\n",
+  "variantNotes":["校勘註，可空陣列"],
   "monologue":"詩人獨白",
   "semantic":{"translation":"白話翻譯40-70字","devices":["修辭1","修辭2","體裁"]},
   "emotion":{"primary":"主要情緒","intensity":"強度","analysis":"情緒分析35-65字","modernEcho":"現代類比"},
@@ -1263,11 +1358,16 @@ function render(r, options = {}) {
   stopBrowserSpeech();
   const sourceKind = options.source === 'local' ? 'local' : 'gemini';
   const sourceText = sourceKind === 'local' ? '本機詩庫' : 'Gemini';
+  const parsedPoemText = splitPoemTextAndVariantNotes(r.fullText || '', r.variantNotes || []);
+  const displayFullText = parsedPoemText.fullText;
+  const variantNotesHtml = renderVariantNotes(parsedPoemText.variantNotes);
+
   currentPoem = {
     title:r.title,
     author:r.author,
     dynasty:r.dynasty,
-    fullText:r.fullText,
+    fullText:displayFullText,
+    variantNotes:parsedPoemText.variantNotes,
     monologue:r.monologue || '',
     semantic:r.semantic,
     emotion:r.emotion,
@@ -1290,7 +1390,8 @@ function render(r, options = {}) {
               <button class="font-size-btn" type="button" data-action="change-poem-font" data-delta="1" title="放大字體">字 大</button>
             </div>
           </div>
-          <div class="poem-text-wrap"><div class="poem-text">${escapeHTML(r.fullText)}</div></div>
+          <div class="poem-text-wrap"><div class="poem-text">${escapeHTML(displayFullText)}</div></div>
+          ${variantNotesHtml}
         </section>
 
         <section class="poem-head poem-title-card">
@@ -1387,7 +1488,7 @@ function render(r, options = {}) {
   if (r.monologue) startTypewriter(r.monologue);
 
   // 初始化對談
-  initChat(r);
+  initChat(currentPoem);
 
   // Enter 送出
   document.getElementById('chat-input').addEventListener('keydown', e => {
