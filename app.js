@@ -740,7 +740,8 @@ async function randomPoem() {
     const poem = libraryItemToRenderPoem(item);
     render(poem, { source:'local' });
     showLocalLibraryNotice();
-    setApiStatus('local');
+    // 隨機召喚只使用本機詩庫，不應改變 Gemini API 連線狀態。
+    // 若使用者原本已連線，左側狀態需維持「已連線」。
     showToast(`已隨機召喚：${poem.title}`, 'ok');
     setTimeout(() => {
       const poemCard = document.querySelector('.poem-scroll') || document.getElementById('output');
@@ -927,7 +928,7 @@ async function recommendLocalSimilarFromError() {
   }
   render(localPoem, { source:'local' });
   showLocalRecommendNotice(query);
-  setApiStatus('local');
+  // 推薦本機相近作品不應覆蓋既有 Gemini API 狀態。
   setTimeout(() => {
     const poemCard = document.querySelector('.poem-scroll') || document.getElementById('output');
     smoothScrollToElement(poemCard, { block:'start', duration:920 });
@@ -1202,7 +1203,7 @@ async function summon() {
   if (localPoem) {
     render(localPoem, { source:'local' });
     showLocalLibraryNotice();
-    if (!sessionStorage.getItem(GEMINI_API_KEY_STORAGE)) setApiStatus('local');
+    // 本機命中只代表資料來源為 poems.json，不代表 Gemini API 斷線。
     setTimeout(() => {
       const poemCard = document.querySelector('.poem-scroll') || document.getElementById('output');
       smoothScrollToElement(poemCard, { block:'start', duration:920 });
@@ -1481,16 +1482,19 @@ function fitPoemLayout() {
     ? Math.max(...lines.map(line => Array.from(line).length))
     : Math.max(4, Array.from(raw.replace(/\s+/g, '')).length);
 
-  const charPitch = fontSize + letterSpacing + (isSmallScreen ? 3 : 5);
-  let h = Math.ceil(maxChars * charPitch + (isSmallScreen ? 34 : 42));
+  const charPitch = fontSize + letterSpacing + 1;
+  let h = Math.ceil(maxChars * charPitch + (isSmallScreen ? 18 : 22));
 
-  // 合理上下限：短詩緊湊，長詞固定在可閱讀高度內。
-  h = Math.max(isSmallScreen ? 165 : 185, Math.min(h, isSmallScreen ? 330 : 360));
+  // 左側原文白框依最長詩句自動收縮／展開；長詞仍保留可讀上限。
+  h = Math.max(isSmallScreen ? 132 : 148, Math.min(h, isSmallScreen ? 330 : 360));
 
   text.style.height = `${h}px`;
+  wrap.style.minHeight = `${h}px`;
+  wrap.style.alignItems = 'center';
 
   const hasHorizontalOverflow = text.scrollWidth > wrap.clientWidth + 1;
-  wrap.style.justifyContent = hasHorizontalOverflow ? 'flex-start' : 'flex-end';
+  // 沒有橫向溢出時置中；長詞溢出時靠起點並捲到直排起始欄。
+  wrap.style.justifyContent = hasHorizontalOverflow ? 'flex-start' : 'center';
   if (hasHorizontalOverflow) {
     requestAnimationFrame(() => {
       wrap.scrollLeft = wrap.scrollWidth;
@@ -1709,10 +1713,16 @@ function bindStaticEvents() {
 window.addEventListener('DOMContentLoaded', async () => {
   bindStaticEvents();
   if ('speechSynthesis' in window) window.speechSynthesis.getVoices?.();
-  setApiStatus('local');
+
   const hadStoredKey = Boolean(sessionStorage.getItem(GEMINI_API_KEY_STORAGE));
+  setApiStatus(hadStoredKey ? 'connected' : 'local');
+
+  // 有暫存 key 時先維持「已連線」視覺狀態，再用輕量模式背景確認一次。
+  // 測試失敗才降級，避免本機詩庫操作把 API 狀態誤判成未連線。
   if (hadStoredKey) {
-    setApiStatus('connected');
+    setTimeout(() => {
+      testGeminiApiKey({ silent:true, promptIfMissing:false, lightweight:true });
+    }, 450);
   }
 });
 

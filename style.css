@@ -614,6 +614,7 @@ body.loading-open{
   display:flex;
   flex-direction:column;
   align-self:start;
+  align-items:stretch;
   height:auto;
 }
 
@@ -722,15 +723,15 @@ body.loading-open{
 .poem-text-wrap{
   display:flex;
   justify-content:center;
-  align-items:flex-end;
+  align-items:center;
   width:100%;
   max-width:100%;
   min-width:0;
   margin:.2rem 0 0;
-  min-height:clamp(220px,34vh,380px);
+  min-height:0;
   overflow-x:auto;
   overflow-y:hidden;
-  padding-bottom:.35rem;
+  padding:.35rem 0;
   scrollbar-width:thin;
 }
 
@@ -799,7 +800,7 @@ body.loading-open{
     font-size:16px;
     line-height:2;
     letter-spacing:3px;
-    height:190px;
+    height:auto;
   }
   .poem-title{
     font-size:21px;
@@ -1115,4 +1116,143 @@ body.loading-open{
   .library-scope-note{text-align:left}
   .poem-head-bottom{align-items:stretch}
   .poem-head-right{flex-wrap:wrap}
+}
+
+/* ══ G2 polish：手機導覽、原文面板、操作列細修 ══ */
+.poem-panel-top{
+  flex-wrap:wrap;
+}
+.poem-panel-top .poem-panel-label{
+  flex:1 1 140px;
+}
+.poem-panel-top .tts-btn,
+.poem-panel-top .font-size-controls{
+  flex:0 0 auto;
+}
+.poem-original-panel{
+  justify-content:center;
+}
+.poem-text-wrap{
+  border-radius:2px;
+}
+@media (max-width:560px){
+  html{scroll-padding-top:104px}
+  .nav{
+    flex-wrap:wrap;
+    align-items:center;
+    row-gap:0;
+    padding:0 .75rem .35rem;
+  }
+  .nav-logo{
+    padding:10px 0 6px;
+    font-size:16px;
+    letter-spacing:4px;
+  }
+  .nav-api-wrap{
+    gap:4px;
+  }
+  .nav-api-status{
+    padding:3px 4px;
+    min-height:26px;
+  }
+  .api-status-pill{
+    min-width:48px;
+    font-size:9px;
+    letter-spacing:0;
+    padding:3px 5px;
+  }
+  .nav-api-btn{
+    padding:5px 7px;
+    font-size:9px;
+    letter-spacing:1px;
+  }
+  .nav-tabs{
+    order:3;
+    width:100%;
+    justify-content:space-between;
+  }
+  .nav-tab{
+    flex:1 1 auto;
+    padding:8px 4px;
+    font-size:11px;
+    letter-spacing:2px;
+  }
+  .page{
+    padding-top:1.35rem;
+  }
+  .hero h1{
+    font-size:42px;
+  }
+  .hero-sub{
+    letter-spacing:3px;
+  }
+  .ritual-box,
+  .poem-scroll,
+  .setup-box{
+    padding-left:1rem;
+    padding-right:1rem;
+  }
+  .poem-overview-grid{
+    gap:.85rem;
+  }
+  .poem-original-panel{
+    padding:1rem .75rem .85rem;
+  }
+  .poem-panel-top{
+    gap:.55rem;
+  }
+  .poem-panel-label{
+    letter-spacing:3px;
+  }
+  .font-size-controls{
+    gap:4px;
+  }
+  .font-size-btn{
+    padding:4px 6px;
+    letter-spacing:1px;
+  }
+  .poem-head-bottom{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .poem-source-note{
+    align-self:flex-start;
+    white-space:normal;
+  }
+  .poem-head-right{
+    justify-content:space-between;
+  }
+  .save-btn,
+  .copy-btn{
+    flex:1 1 0;
+    text-align:center;
+  }
+  .tabs{
+    grid-template-columns:1fr;
+  }
+  .tab{
+    padding:10px 8px;
+  }
+  .chat-input-wrap{
+    flex-direction:column;
+  }
+  .chat-send{
+    width:100%;
+  }
+}
+@media (max-width:390px){
+  .nav-logo{
+    letter-spacing:3px;
+  }
+  .nav-api-status{
+    display:none;
+  }
+  .nav-tab{
+    font-size:10px;
+    letter-spacing:1px;
+  }
+  .collect-badge{
+    margin-left:3px;
+    padding:2px 5px;
+  }
 }

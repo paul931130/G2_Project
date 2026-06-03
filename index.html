@@ -181,7 +181,7 @@
     <button class="api-modal-close" type="button" data-action="close-api-key-modal" aria-label="關閉">×</button>
     <div class="api-modal-title" id="api-key-modal-title">Gemini API Key</div>
     <div class="api-modal-desc">
-      請貼上 Gemini API key。Key 只會暫存在本分頁 sessionStorage，關閉分頁後即清除；貼上後會延遲自動測試一次，並加入冷卻機制避免 Too many requests。未輸入 key 時仍可使用本機詩庫、隨機召喚與免費瀏覽器朗讀。
+      請貼上 Gemini API key。Key 只會暫存在本分頁 sessionStorage，關閉分頁後即清除；貼上後會延遲自動測試一次，並加入冷卻機制避免 Too many requests。隨機召喚與本機詩庫查詢不會改變 API 連線狀態。未輸入 key 時仍可使用本機詩庫與免費瀏覽器朗讀。
     </div>
     <input class="api-key-input" id="api-key-input" type="password" autocomplete="off" spellcheck="false" placeholder="貼上 Gemini API key"/>
     <div class="api-modal-status" id="api-key-modal-status">未輸入 key 時會使用本機 poems.json 詩庫；貼上 key 後會受控自動測試一次。</div>
