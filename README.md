@@ -29,24 +29,26 @@
 
 3. 可按「🎲 隨機一首」從本機詩庫抽出作品，不消耗 Gemini API。
 <img width="2529" height="1301" alt="image" src="https://github.com/user-attachments/assets/297e6cdd-dee5-4d36-bf80-ff6d94f576bb" />
+
 4. 若要使用 Gemini，點左側 `API KEY`，貼上 key 後會自動輕量測試一次；測試成功後即可使用 AI 分析與詩魂問答。- 輸出內容明確顯示來源：Gemini 或本機詩庫。
 <img width="972" height="534" alt="image" src="https://github.com/user-attachments/assets/931cf8f5-a607-4565-bf99-c984615ed436" />
+
 5. API 狀態條顯示已連線、僅本機或配額受限。
 <img width="323" height="241" alt="image" src="https://github.com/user-attachments/assets/75483810-a8cb-431a-be12-f4c21f4ad253" />
 <img width="339" height="220" alt="image" src="https://github.com/user-attachments/assets/f1a1690d-64e6-4f50-a777-9224846bf134" />
 <img width="337" height="236" alt="image" src="https://github.com/user-attachments/assets/170d05c0-e255-4acc-addb-29b6c0716a11" />
-5. 發生連線錯誤時，提供重試 API、切換 API Key、推薦本機類似文章。
+6. 發生連線錯誤時，提供重試 API、切換 API Key、推薦本機類似文章。
 <img width="1702" height="293" alt="image" src="https://github.com/user-attachments/assets/68b37c13-4426-44da-a74f-806210eae458" />
-6. 查到詩後，可按「朗讀」使用瀏覽器內建語音朗讀詩文或詩魂自語。
+7. 查到詩後，可按「朗讀」使用瀏覽器內建語音朗讀詩文或詩魂自語。
 <img width="1621" height="369" alt="image" src="https://github.com/user-attachments/assets/96ebc36a-42be-4acd-b8ee-3d57c76281b2" />
 <img width="1621" height="360" alt="image" src="https://github.com/user-attachments/assets/f14bb44e-bf6d-49ff-99a7-935f5ecc9928" />
-7. 可切換分析頁籤、向詩魂提問、收藏或複製詩作。
+8. 可切換分析頁籤、向詩魂提問、收藏或複製詩作。
 <img width="1866" height="601" alt="image" src="https://github.com/user-attachments/assets/e7be617a-b2d3-4d8f-a6da-3f421f14ef85" />
 <img width="1943" height="658" alt="image" src="https://github.com/user-attachments/assets/6ce6fb07-96cc-489e-ab08-56920a1ee271" />
 <img width="524" height="661" alt="image" src="https://github.com/user-attachments/assets/cbc4ef47-53d9-4f42-9245-833636bb1556" />
-8. 可到「雙魂對話」選兩位詩人，輸入主題後生成對話。
+9. 可到「雙魂對話」選兩位詩人，輸入主題後生成對話。
 <img width="2491" height="1292" alt="image" src="https://github.com/user-attachments/assets/4c3ae003-845a-4f79-9b2e-b35f9f40629e" />
-9. API Key 只存 `sessionStorage`，關閉分頁後清除。
+10. API Key 只存 `sessionStorage`，關閉分頁後清除。
 <img width="1745" height="901" alt="image" src="https://github.com/user-attachments/assets/7068900a-9ec3-4dfe-9eed-66ecfb2268e7" />
 
 ## 本機詩庫限制
