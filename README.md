@@ -38,8 +38,9 @@
 <img width="339" height="220" alt="image" src="https://github.com/user-attachments/assets/f1a1690d-64e6-4f50-a777-9224846bf134" />
 <img width="337" height="236" alt="image" src="https://github.com/user-attachments/assets/170d05c0-e255-4acc-addb-29b6c0716a11" />
 
-6. 發生連線錯誤時，提供重試 API、切換 API Key、推薦本機類似文章。
-<img width="1702" height="293" alt="image" src="https://github.com/user-attachments/assets/68b37c13-4426-44da-a74f-806210eae458" />
+6. 發生連線錯誤時，提供重試查詢 API、切換 API Key、查詢本機類似詩詞、隨機召喚、返回重新輸入其他內容。
+<img width="1716" height="286" alt="image" src="https://github.com/user-attachments/assets/47e34871-e057-4e52-ad91-ab0c1aeb8c63" />
+
 
 7. 查到詩後，可按「朗讀」使用瀏覽器內建語音朗讀詩文或詩魂自語。
 <img width="1621" height="369" alt="image" src="https://github.com/user-attachments/assets/96ebc36a-42be-4acd-b8ee-3d57c76281b2" />
