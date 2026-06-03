@@ -2,6 +2,10 @@ const GEMINI_API_KEY_STORAGE = 'poemlens_gemini_api_key';
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const REQUEST_TIMEOUT_MS = 30000;
 const CHAT_HISTORY_MAX_EXCHANGES = 6;
+const API_KEY_TEST_DEBOUNCE_MS = 1200;
+const API_KEY_TEST_MIN_INTERVAL_MS = 15000;
+const API_KEY_TEST_COOLDOWN_MS = 60000;
+const API_KEY_TEST_COOLDOWN_STORAGE = 'poemlens_gemini_api_key_test_cooldown_until';
 const POEM_JSON_GENERATION_CONFIG = {
   temperature:0.35,
   maxOutputTokens:4096,
@@ -45,7 +49,7 @@ function openApiKeyModal(options = {}) {
   const input = document.getElementById('api-key-input');
   if (!modal || !input) return;
   input.value = sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || geminiApiKey || '';
-  setApiModalStatus(input.value ? '已載入本分頁暫存 key；修改後會自動重新測試。' : '未輸入 key 時會使用本機 poems.json 詩庫。');
+  setApiModalStatus(input.value ? '已載入本分頁暫存 key；如需驗證，重新貼上或修改 key 後會受控自動測試一次。' : '未輸入 key 時會使用本機 poems.json 詩庫。貼上 key 後會延遲自動測試一次。');
   modal.hidden = false;
   document.body.classList.add('loading-open');
   if (options.autofocus !== false) {
@@ -76,6 +80,97 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = REQUEST_TIME
 }
 
 let apiKeyAutoTestTimer = null;
+let apiKeyTestInFlight = false;
+let lastApiKeyTestAt = 0;
+let lastApiKeyTestFingerprint = '';
+let lastApiKeyTestOk = false;
+let apiKeyTestCooldownUntil = Number(sessionStorage.getItem(API_KEY_TEST_COOLDOWN_STORAGE) || 0);
+
+function fingerprintGeminiApiKey(key) {
+  const value = String(key || '');
+  if (!value) return '';
+  return `${value.length}:${value.slice(0, 6)}:${value.slice(-4)}`;
+}
+
+function getApiKeyTestCooldownRemaining() {
+  return Math.max(0, apiKeyTestCooldownUntil - Date.now());
+}
+
+function scheduleGeminiApiKeyAutoTest(value) {
+  clearTimeout(apiKeyAutoTestTimer);
+  apiKeyAutoTestTimer = setTimeout(() => {
+    runGeminiApiKeyAutoTest(value);
+  }, API_KEY_TEST_DEBOUNCE_MS);
+}
+
+async function runGeminiApiKeyAutoTest(value) {
+  const currentValue = (sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || '').trim();
+  if (!value || value !== currentValue) return;
+
+  const fingerprint = fingerprintGeminiApiKey(value);
+  if (fingerprint && fingerprint === lastApiKeyTestFingerprint && lastApiKeyTestOk) {
+    setApiStatus('connected');
+    setApiModalStatus('這把 Gemini API key 已測試成功；為避免重複請求，不再自動測。', 'ok');
+    return;
+  }
+
+  const cooldownRemaining = getApiKeyTestCooldownRemaining();
+  if (cooldownRemaining > 0) {
+    setApiStatus('limited');
+    setApiModalStatus(`剛遇到 Gemini 限流，暫停自動測試 ${Math.ceil(cooldownRemaining / 1000)} 秒，避免 Too many requests。`, 'warn');
+    return;
+  }
+
+  const now = Date.now();
+  const elapsed = now - lastApiKeyTestAt;
+  if (elapsed > 0 && elapsed < API_KEY_TEST_MIN_INTERVAL_MS) {
+    const waitMs = API_KEY_TEST_MIN_INTERVAL_MS - elapsed;
+    setApiModalStatus(`已暫存 key；${Math.ceil(waitMs / 1000)} 秒後自動測試，避免過度請求。`);
+    clearTimeout(apiKeyAutoTestTimer);
+    apiKeyAutoTestTimer = setTimeout(() => runGeminiApiKeyAutoTest(value), waitMs);
+    return;
+  }
+
+  if (apiKeyTestInFlight) {
+    setApiModalStatus('Gemini key 測試中，暫不重複送出請求。');
+    return;
+  }
+
+  apiKeyTestInFlight = true;
+  lastApiKeyTestAt = Date.now();
+  lastApiKeyTestFingerprint = fingerprint;
+  lastApiKeyTestOk = false;
+  setApiStatus('local');
+  setApiModalStatus('正在輕量測試 Gemini API key，不進行內容生成...');
+
+  try {
+    const result = await testGeminiApiKey({ silent:true, promptIfMissing:false, lightweight:true });
+    const latestValue = (sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || '').trim();
+    if (latestValue !== value) return;
+
+    if (result.ok) {
+      lastApiKeyTestOk = true;
+      setApiStatus('connected');
+      setApiModalStatus('Gemini API key 測試成功。之後只有需要 AI 分析時才會送出請求。', 'ok');
+      showToast('Gemini API key 測試成功。', 'ok');
+      return;
+    }
+
+    if (result.code === 429) {
+      apiKeyTestCooldownUntil = Date.now() + API_KEY_TEST_COOLDOWN_MS;
+      sessionStorage.setItem(API_KEY_TEST_COOLDOWN_STORAGE, String(apiKeyTestCooldownUntil));
+      setApiStatus('limited');
+      setApiModalStatus('Gemini 回覆 Too many requests；已暫停自動測試 60 秒。', 'warn');
+      showToast('Gemini 暫時限流，已停止自動測試 60 秒。', 'warn');
+      return;
+    }
+
+    setApiStatus('local');
+    setApiModalStatus(result.message || 'Gemini API key 測試失敗，請確認 key 是否正確或 API 是否啟用。', 'warn');
+  } finally {
+    apiKeyTestInFlight = false;
+  }
+}
 
 function handleApiKeyInput() {
   const input = document.getElementById('api-key-input');
@@ -91,29 +186,16 @@ function handleApiKeyInput() {
   if (value.length < 20) {
     geminiApiKey = '';
     sessionStorage.removeItem(GEMINI_API_KEY_STORAGE);
+    setApiStatus('local');
     setApiModalStatus('請貼上完整 API key；目前看起來長度不足。', 'warn');
     return;
   }
 
   geminiApiKey = value;
   sessionStorage.setItem(GEMINI_API_KEY_STORAGE, value);
-  setApiModalStatus('偵測到輸入，準備自動測試 Gemini 連線。');
-
-  apiKeyAutoTestTimer = setTimeout(async () => {
-    setApiModalStatus('正在測試 Gemini API key...');
-    const result = await testGeminiApiKey({ promptIfMissing:false, silent:true });
-    if (result.ok) {
-      setApiModalStatus(`連線成功：${GEMINI_MODEL}`, 'ok');
-      showToast('Gemini API 已連線。', 'ok');
-      return;
-    }
-    if (result.code === 429) {
-      setApiModalStatus('Key 可用，但目前配額受限或請求過於頻繁。', 'warn');
-      showToast('Gemini API 配額受限，仍可使用本機詩庫。', 'warn');
-      return;
-    }
-    setApiModalStatus(`測試失敗：${result.message || '請確認 key 或 API 權限'}`, 'warn');
-  }, 750);
+  setApiStatus('local');
+  setApiModalStatus('已暫存 Gemini API key；將延遲自動測試一次，避免 Too many requests。');
+  scheduleGeminiApiKeyAutoTest(value);
 }
 
 let lastFailedPoemQuery = '';
@@ -172,11 +254,14 @@ function clearGeminiApiKey() {
   geminiApiKeyPrompted = false;
   sessionStorage.removeItem(GEMINI_API_KEY_STORAGE);
   clearTimeout(apiKeyAutoTestTimer);
+  lastApiKeyTestFingerprint = '';
+  lastApiKeyTestOk = false;
   setApiStatus('local');
 }
 
 async function testGeminiApiKey(options = {}) {
   const silent = Boolean(options.silent);
+  const lightweight = options.lightweight !== false;
   const apiKey = getGeminiApiKey({
     promptIfMissing: options.promptIfMissing !== false,
     force: Boolean(options.force)
@@ -188,21 +273,31 @@ async function testGeminiApiKey(options = {}) {
   }
 
   try {
-    const resp = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:[{ parts:[{ text:'請只回覆：API_OK' }] }]
-      })
-    });
+    const endpoint = lightweight
+      ? `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}?key=${encodeURIComponent(apiKey)}`
+      : `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+    const requestOptions = lightweight
+      ? { method:'GET' }
+      : {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            contents:[{ parts:[{ text:'請只回覆：API_OK' }] }]
+          })
+        };
+
+    const resp = await fetchWithTimeout(endpoint, requestOptions);
 
     let body = {};
     try { body = await resp.json(); } catch(_) {}
 
     if (resp.ok) {
-      const text = body?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '成功，但沒有文字回覆';
+      const text = lightweight
+        ? (body?.displayName || GEMINI_MODEL)
+        : (body?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '成功，但沒有文字回覆');
       setApiStatus('connected');
-      if (!silent) showToast(`Gemini API 測試成功（${GEMINI_MODEL}）：${text}`, 'ok');
+      if (!silent) showToast(`Gemini API 測試成功（${text}）。`, 'ok');
       return { ok:true, status:'connected', text };
     }
 
@@ -611,6 +706,155 @@ async function getLibraryPoem(input, options = {}) {
 async function getLocalPoem(input, options = {}) {
   return await getLibraryPoem(input, options);
 }
+
+
+function chooseRandomLibraryItem(data) {
+  const usable = (Array.isArray(data) ? data : []).filter(item => {
+    return item && item.title && Array.isArray(item.content) && item.content.length;
+  });
+  if (!usable.length) return null;
+  const index = Math.floor(Math.random() * usable.length);
+  return usable[index];
+}
+
+async function randomPoem() {
+  const btn = document.getElementById('random-btn');
+  const output = document.getElementById('output');
+  if (btn) btn.disabled = true;
+  if (output) output.innerHTML = '';
+
+  try {
+    const data = await ensureLocalPoemDataLoaded();
+    const item = chooseRandomLibraryItem(data);
+    if (!item) {
+      if (output) {
+        const hint = localPoemDataLoadError
+          ? '請確認 poems.json 已與 index.html 放在同一層，並使用 localhost 或 GitHub Pages 開啟。'
+          : '目前本機詩庫沒有可抽取的作品。';
+        output.innerHTML = `<div class="error"><div class="error-title">本 機 詩 庫 暫 時 無 法 隨 機 召 喚</div><div class="error-detail">${escapeHTML(hint)}</div></div>`;
+      }
+      showToast('本機詩庫尚未載入，無法隨機召喚。', 'warn');
+      return;
+    }
+
+    const poem = libraryItemToRenderPoem(item);
+    render(poem, { source:'local' });
+    showLocalLibraryNotice();
+    setApiStatus('local');
+    showToast(`已隨機召喚：${poem.title}`, 'ok');
+    setTimeout(() => {
+      const poemCard = document.querySelector('.poem-scroll') || document.getElementById('output');
+      smoothScrollToElement(poemCard, { block:'start', duration:920 });
+    }, 160);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+let activeSpeechButton = null;
+let activeSpeechText = '';
+
+function normalizeSpeechText(text) {
+  return String(text || '')
+    .replace(/[\t ]+/g, ' ')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+}
+
+function getChineseSpeechVoice() {
+  if (!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices?.() || [];
+  return voices.find(v => v.lang === 'zh-TW')
+    || voices.find(v => /zh[-_]?Hant/i.test(v.lang))
+    || voices.find(v => /^zh/i.test(v.lang))
+    || voices[0]
+    || null;
+}
+
+function setSpeechButtonState(button, state) {
+  if (!button) return;
+  if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent.trim() || '朗 讀';
+  button.classList.remove('loading', 'playing');
+  button.disabled = false;
+
+  if (state === 'loading') {
+    button.classList.add('loading');
+    button.textContent = '準 備';
+  } else if (state === 'playing') {
+    button.classList.add('playing');
+    button.textContent = '停 止';
+  } else {
+    button.textContent = button.dataset.idleLabel;
+  }
+}
+
+function resetSpeechButtons() {
+  document.querySelectorAll('.tts-btn').forEach(btn => setSpeechButtonState(btn, 'idle'));
+}
+
+function stopBrowserSpeech() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  activeSpeechButton = null;
+  activeSpeechText = '';
+  resetSpeechButtons();
+}
+
+function speakWithBrowser(text, button) {
+  const cleanText = normalizeSpeechText(text);
+  if (!cleanText) {
+    showToast('目前沒有可朗讀的文字。', 'warn');
+    return;
+  }
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    showToast('此瀏覽器不支援內建朗讀，建議改用 Chrome 或 Edge。', 'warn');
+    return;
+  }
+
+  if (activeSpeechButton === button && activeSpeechText === cleanText && button?.classList.contains('playing')) {
+    stopBrowserSpeech();
+    return;
+  }
+
+  stopBrowserSpeech();
+  activeSpeechButton = button || null;
+  activeSpeechText = cleanText;
+  setSpeechButtonState(button, 'loading');
+
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+  utterance.lang = 'zh-TW';
+  utterance.rate = 0.85;
+  utterance.pitch = 1;
+  utterance.volume = 1;
+  const voice = getChineseSpeechVoice();
+  if (voice) utterance.voice = voice;
+
+  utterance.onstart = () => setSpeechButtonState(button, 'playing');
+  utterance.onend = () => {
+    if (activeSpeechButton === button) stopBrowserSpeech();
+  };
+  utterance.onerror = () => {
+    if (activeSpeechButton === button) stopBrowserSpeech();
+    showToast('朗讀被中止或無法播放。', 'warn');
+  };
+
+  window.speechSynthesis.speak(utterance);
+  setTimeout(() => {
+    if (activeSpeechButton === button && button?.classList.contains('loading')) {
+      setSpeechButtonState(button, 'playing');
+    }
+  }, 350);
+}
+
+function speakCurrentPoem(button) {
+  speakWithBrowser(currentPoem?.fullText || '', button);
+}
+
+function speakCurrentMonologue(button) {
+  const typedText = document.getElementById('tw-span')?.textContent || '';
+  speakWithBrowser(currentPoem?.monologue || typedText, button);
+}
 function appendPoemNotice(text) {
   const poemCard = document.querySelector('.poem-scroll');
   if (!poemCard) return;
@@ -802,6 +1046,7 @@ function smoothFollowNewContent(el, options = {}) {
 
 // ══ 頁面切換 ══
 function showPage(id, tab) {
+  stopBrowserSpeech();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
 
@@ -1011,6 +1256,7 @@ modernEcho：現代生活情境類比，15-30字。
 }
 
 function render(r, options = {}) {
+  stopBrowserSpeech();
   const sourceKind = options.source === 'local' ? 'local' : 'gemini';
   const sourceText = sourceKind === 'local' ? '本機詩庫' : 'Gemini';
   currentPoem = {
@@ -1018,6 +1264,7 @@ function render(r, options = {}) {
     author:r.author,
     dynasty:r.dynasty,
     fullText:r.fullText,
+    monologue:r.monologue || '',
     semantic:r.semantic,
     emotion:r.emotion,
     history:r.history,
@@ -1032,6 +1279,7 @@ function render(r, options = {}) {
         <section class="poem-original-panel">
           <div class="poem-panel-top">
             <div class="poem-panel-label">— 詩 作 原 文 —</div>
+            <button class="tts-btn" type="button" data-action="speak-poem" data-idle-label="朗 讀">朗 讀</button>
             <div class="font-size-controls" aria-label="調整詩文字大小">
               <button class="font-size-btn" type="button" data-action="change-poem-font" data-delta="-1" title="縮小字體">字 小</button>
               <span class="font-size-value" id="poem-font-size-value">17</span>
@@ -1069,7 +1317,10 @@ function render(r, options = {}) {
       </div>
 
       <section class="monologue-wrap" id="monologue-wrap">
-        <div class="monologue-label">— 詩 魂 自 語 —</div>
+        <div class="monologue-title-row">
+          <div class="monologue-label">— 詩 魂 自 語 —</div>
+          <button class="tts-btn" type="button" data-action="speak-monologue" data-idle-label="朗 讀">朗 讀</button>
+        </div>
       </section>
 
       <div class="completion-seal">已 通 靈</div>
@@ -1403,6 +1654,8 @@ function bindStaticEvents() {
       fill(actionEl.dataset.value || '', actionEl);
     } else if (action === 'summon') {
       summon();
+    } else if (action === 'random-poem') {
+      randomPoem();
     } else if (action === 'toggle-persona') {
       togglePersona();
     } else if (action === 'reset-persona') {
@@ -1431,6 +1684,10 @@ function bindStaticEvents() {
       toggleSave();
     } else if (action === 'copy-poem') {
       copyCurrentPoem();
+    } else if (action === 'speak-poem') {
+      speakCurrentPoem(actionEl);
+    } else if (action === 'speak-monologue') {
+      speakCurrentMonologue(actionEl);
     } else if (action === 'switch-tab') {
       swTab(actionEl, actionEl.dataset.tab);
     } else if (action === 'send-chat') {
@@ -1451,11 +1708,11 @@ function bindStaticEvents() {
 
 window.addEventListener('DOMContentLoaded', async () => {
   bindStaticEvents();
+  if ('speechSynthesis' in window) window.speechSynthesis.getVoices?.();
   setApiStatus('local');
   const hadStoredKey = Boolean(sessionStorage.getItem(GEMINI_API_KEY_STORAGE));
-  promptForGeminiApiKey(false);
   if (hadStoredKey) {
-    await testGeminiApiKey({ promptIfMissing:false, silent:true });
+    setApiStatus('connected');
   }
 });
 

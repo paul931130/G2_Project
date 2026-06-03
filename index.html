@@ -22,11 +22,8 @@
   <div class="nav-tabs">
     <button class="nav-tab active" data-action="show-page" data-page="p1" type="button">通 靈 問 詩</button>
     <button class="nav-tab" data-action="show-page" data-page="p2" type="button">雙 魂 對 話</button>
-    <button class="nav-tab" data-action="show-page" data-page="p3" type="button">詩 藏</button>
+    <button class="nav-tab" data-action="show-page" data-page="p3" type="button">詩 藏 <span class="collect-badge" id="collect-badge">0</span></button>
   </div>
-  <button class="nav-collect-btn" data-action="show-page" data-page="p3" type="button">
-    詩 藏 <span class="collect-badge" id="collect-badge">0</span>
-  </button>
   <div class="nav-api-wrap">
     <div class="nav-api-status" aria-live="polite">
       <div class="api-status-label">API 狀態</div>
@@ -86,6 +83,7 @@
       </div>
     </div>
     <button class="submit-btn" id="submit-btn" data-action="summon" type="button">焚 香 問 詩</button>
+    <button class="random-btn" id="random-btn" data-action="random-poem" type="button">🎲 隨 機 一 首</button>
   </div>
 
   <div class="loading-box" id="loading" aria-live="polite" aria-busy="true">
@@ -183,10 +181,10 @@
     <button class="api-modal-close" type="button" data-action="close-api-key-modal" aria-label="關閉">×</button>
     <div class="api-modal-title" id="api-key-modal-title">Gemini API Key</div>
     <div class="api-modal-desc">
-      請貼上 Gemini API key。Key 只會暫存在本分頁 sessionStorage，關閉分頁後即清除；貼上後會自動測試連線。
+      請貼上 Gemini API key。Key 只會暫存在本分頁 sessionStorage，關閉分頁後即清除；貼上後會延遲自動測試一次，並加入冷卻機制避免 Too many requests。未輸入 key 時仍可使用本機詩庫、隨機召喚與免費瀏覽器朗讀。
     </div>
     <input class="api-key-input" id="api-key-input" type="password" autocomplete="off" spellcheck="false" placeholder="貼上 Gemini API key"/>
-    <div class="api-modal-status" id="api-key-modal-status">未輸入 key 時會使用本機 poems.json 詩庫。</div>
+    <div class="api-modal-status" id="api-key-modal-status">未輸入 key 時會使用本機 poems.json 詩庫；貼上 key 後會受控自動測試一次。</div>
     <div class="api-modal-actions">
       <button class="api-modal-btn" type="button" data-action="clear-api-key">清除 Key</button>
       <button class="api-modal-btn primary" type="button" data-action="close-api-key-modal">關閉</button>
