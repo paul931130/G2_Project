@@ -12,17 +12,17 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23f5ede0'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-size='36' fill='%23a83232' font-family='serif'%3E%E8%A9%A9%3C/text%3E%3C/svg%3E"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20260603-v141-final-display"/>
+<link rel="stylesheet" href="style.css?v=20260604-v150-release-ready"/>
 </head>
 <body>
 
 <!-- ══ 導覽列 ══ -->
-<nav class="nav">
+<nav class="nav" aria-label="主要功能">
   <div class="nav-logo">詩 境</div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" data-action="show-page" data-page="p1" type="button">通 靈 問 詩</button>
-    <button class="nav-tab" data-action="show-page" data-page="p2" type="button">雙 魂 對 話</button>
-    <button class="nav-tab" data-action="show-page" data-page="p3" type="button">詩 藏 <span class="collect-badge" id="collect-badge">0</span></button>
+  <div class="nav-tabs" role="tablist" aria-label="頁面切換">
+    <button class="nav-tab active" data-action="show-page" data-page="p1" type="button" role="tab" aria-selected="true" aria-controls="p1">通 靈 問 詩</button>
+    <button class="nav-tab" data-action="show-page" data-page="p2" type="button" role="tab" aria-selected="false" aria-controls="p2">雙 魂 對 話</button>
+    <button class="nav-tab" data-action="show-page" data-page="p3" type="button" role="tab" aria-selected="false" aria-controls="p3">詩 藏 <span class="collect-badge" id="collect-badge">0</span></button>
   </div>
   <div class="nav-api-wrap">
     <div class="nav-api-status" aria-live="polite">
@@ -34,7 +34,7 @@
 </nav>
 
 <!-- ══ 頁面1：通靈問詩 ══ -->
-<div class="page active" id="p1">
+<div class="page active" id="p1" role="tabpanel">
   <div class="smoke-wrap">
     <div class="censer-mini">
       <div class="s"></div><div class="s"></div><div class="s"></div>
@@ -56,7 +56,8 @@
 
   <div class="ritual-box">
     <div class="ritual-label">— 心 中 所 念，何 詩 何 句 —</div>
-    <input id="poem-input" type="text" placeholder="作者、片段、意境皆可"/>
+    <label class="sr-only" for="poem-input">輸入詩名、作者、詩句片段或意境描述</label>
+    <input id="poem-input" type="text" placeholder="作者、片段、意境皆可" autocomplete="off"/>
     <div class="library-scope-note">本機詩庫目前主要收錄唐詩；宋詞或意境式查詢可貼上 Gemini API Key 後使用。</div>
     <div class="example-group">
       <div class="group-label">作 者</div>
@@ -93,11 +94,11 @@
       <div class="loading-note">古 卷 翻 動，詩 魂 將 至</div>
     </div>
   </div>
-  <div id="output"></div>
+  <div id="output" aria-live="polite"></div>
 </div>
 
 <!-- ══ 頁面2：雙魂對話 ══ -->
-<div class="page" id="p2">
+<div class="page" id="p2" role="tabpanel">
   <div class="page2-title">雙 魂 對 話</div>
   <div class="page2-sub">— 召 喚 兩 位 詩 人，就 主 題 展 開 詩 意 對 話 —</div>
 
@@ -105,7 +106,7 @@
     <div class="setup-label">— 設 定 對 話 —</div>
     <div class="setup-grid">
       <div class="setup-col">
-        <label>詩 人 甲</label>
+        <label for="poet-a">詩 人 甲</label>
         <select id="poet-a">
           <option value="李白">李白（唐）</option>
           <option value="杜甫">杜甫（唐）</option>
@@ -118,7 +119,7 @@
         </select>
       </div>
       <div class="setup-col">
-        <label>詩 人 乙</label>
+        <label for="poet-b">詩 人 乙</label>
         <select id="poet-b">
           <option value="蘇軾" selected>蘇軾（宋）</option>
           <option value="李白">李白（唐）</option>
@@ -132,18 +133,18 @@
       </div>
     </div>
     <div class="topic-row">
-      <label>對 話 主 題</label>
+      <label for="d-topic">對 話 主 題</label>
       <input id="d-topic" type="text" placeholder="月亮、離別、功名、人生無常…"/>
     </div>
     <button class="persona-toggle" data-action="toggle-persona" type="button">▸ 展 開 Persona 設 定（System Prompt）</button>
     <div class="persona-panels" id="persona-panels">
       <div class="persona-panel">
-        <label id="label-a">李白 Persona</label>
+        <label id="label-a" for="persona-a">李白 Persona</label>
         <textarea class="persona-textarea" id="persona-a"></textarea>
         <button class="reset-persona-btn" data-action="reset-persona" data-persona="a" type="button">還原預設</button>
       </div>
       <div class="persona-panel">
-        <label id="label-b">蘇軾 Persona</label>
+        <label id="label-b" for="persona-b">蘇軾 Persona</label>
         <textarea class="persona-textarea" id="persona-b"></textarea>
         <button class="reset-persona-btn" data-action="reset-persona" data-persona="b" type="button">還原預設</button>
       </div>
@@ -168,7 +169,7 @@
 </div>
 
 <!-- ══ 頁面3：詩藏 ══ -->
-<div class="page" id="p3">
+<div class="page" id="p3" role="tabpanel">
   <div class="page3-title">詩 藏</div>
   <div class="page3-sub">— 你 召 喚 過 的 詩 魂 —</div>
   <div id="col-content"></div>
@@ -183,6 +184,7 @@
     <div class="api-modal-desc">
       請貼上 Gemini API key。Key 只會暫存在本分頁 sessionStorage，關閉分頁後即清除；貼上後會延遲自動測試一次，並加入冷卻機制避免 Too many requests。隨機召喚與本機詩庫查詢不會改變 API 連線狀態。未輸入 key 時仍可使用本機詩庫與免費瀏覽器朗讀。
     </div>
+    <label class="sr-only" for="api-key-input">Gemini API Key</label>
     <input class="api-key-input" id="api-key-input" type="password" autocomplete="off" spellcheck="false" placeholder="貼上 Gemini API key"/>
     <div class="api-modal-status" id="api-key-modal-status">未輸入 key 時會使用本機 poems.json 詩庫；貼上 key 後會受控自動測試一次。</div>
     <div class="api-modal-actions">
@@ -193,6 +195,6 @@
 </div>
 <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
 
-<script src="app.js?v=20260603-v141-final-display" defer></script>
+<script src="app.js?v=20260604-v150-release-ready" defer></script>
 </body>
 </html>

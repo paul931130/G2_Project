@@ -11,9 +11,41 @@ const POEM_JSON_GENERATION_CONFIG = {
   maxOutputTokens:4096,
   responseMimeType:'application/json'
 };
-let geminiApiKey = sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
+
+function safeStorageGet(storage, key, fallback = '') {
+  try {
+    return storage?.getItem(key) ?? fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function safeStorageSet(storage, key, value) {
+  try {
+    storage?.setItem(key, value);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function safeStorageRemove(storage, key) {
+  try {
+    storage?.removeItem(key);
+  } catch (_) {}
+}
+
+function safeJsonParse(value, fallback) {
+  try {
+    return JSON.parse(value);
+  } catch (_) {
+    return fallback;
+  }
+}
+
+let geminiApiKey = safeStorageGet(sessionStorage, GEMINI_API_KEY_STORAGE, '') || '';
 let geminiApiKeyPrompted = false;
-const LOCAL_POEM_LIBRARY_VERSION = '20260603-v141-final-display';
+const LOCAL_POEM_LIBRARY_VERSION = '20260604-v150-release-ready';
 // 每次載入頁面都替 poems.json 自動加時間戳，避免瀏覽器吃到舊詩庫；使用者不用手動在網址後加 ?v=。
 const LOCAL_POEM_LIBRARY_URL = `poems.json?v=${LOCAL_POEM_LIBRARY_VERSION}&t=${Date.now()}`;
 let LOCAL_POEM_DATA = null;
@@ -50,7 +82,7 @@ function openApiKeyModal(options = {}) {
   const modal = document.getElementById('api-key-modal');
   const input = document.getElementById('api-key-input');
   if (!modal || !input) return;
-  input.value = sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || geminiApiKey || '';
+  input.value = safeStorageGet(sessionStorage, GEMINI_API_KEY_STORAGE, '') || geminiApiKey || '';
   setApiModalStatus(input.value ? '已載入本分頁暫存 key；如需驗證，重新貼上或修改 key 後會受控自動測試一次。' : '未輸入 key 時會使用本機 poems.json 詩庫。貼上 key 後會延遲自動測試一次。');
   modal.hidden = false;
   document.body.classList.add('loading-open');
@@ -86,7 +118,7 @@ let apiKeyTestInFlight = false;
 let lastApiKeyTestAt = 0;
 let lastApiKeyTestFingerprint = '';
 let lastApiKeyTestOk = false;
-let apiKeyTestCooldownUntil = Number(sessionStorage.getItem(API_KEY_TEST_COOLDOWN_STORAGE) || 0);
+let apiKeyTestCooldownUntil = Number(safeStorageGet(sessionStorage, API_KEY_TEST_COOLDOWN_STORAGE, '0') || 0);
 
 function fingerprintGeminiApiKey(key) {
   const value = String(key || '');
@@ -106,7 +138,7 @@ function scheduleGeminiApiKeyAutoTest(value) {
 }
 
 async function runGeminiApiKeyAutoTest(value) {
-  const currentValue = (sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || '').trim();
+  const currentValue = (safeStorageGet(sessionStorage, GEMINI_API_KEY_STORAGE, '') || '').trim();
   if (!value || value !== currentValue) return;
 
   const fingerprint = fingerprintGeminiApiKey(value);
@@ -147,7 +179,7 @@ async function runGeminiApiKeyAutoTest(value) {
 
   try {
     const result = await testGeminiApiKey({ silent:true, promptIfMissing:false, lightweight:true });
-    const latestValue = (sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || '').trim();
+    const latestValue = (safeStorageGet(sessionStorage, GEMINI_API_KEY_STORAGE, '') || '').trim();
     if (latestValue !== value) return;
 
     if (result.ok) {
@@ -160,7 +192,7 @@ async function runGeminiApiKeyAutoTest(value) {
 
     if (result.code === 429) {
       apiKeyTestCooldownUntil = Date.now() + API_KEY_TEST_COOLDOWN_MS;
-      sessionStorage.setItem(API_KEY_TEST_COOLDOWN_STORAGE, String(apiKeyTestCooldownUntil));
+      safeStorageSet(sessionStorage, API_KEY_TEST_COOLDOWN_STORAGE, String(apiKeyTestCooldownUntil));
       setApiStatus('limited');
       setApiModalStatus('Gemini 回覆 Too many requests；已暫停自動測試 60 秒。', 'warn');
       showToast('Gemini 暫時限流，已停止自動測試 60 秒。', 'warn');
@@ -187,14 +219,14 @@ function handleApiKeyInput() {
 
   if (value.length < 20) {
     geminiApiKey = '';
-    sessionStorage.removeItem(GEMINI_API_KEY_STORAGE);
+    safeStorageRemove(sessionStorage, GEMINI_API_KEY_STORAGE);
     setApiStatus('local');
     setApiModalStatus('請貼上完整 API key；目前看起來長度不足。', 'warn');
     return;
   }
 
   geminiApiKey = value;
-  sessionStorage.setItem(GEMINI_API_KEY_STORAGE, value);
+  safeStorageSet(sessionStorage, GEMINI_API_KEY_STORAGE, value);
   setApiStatus('local');
   setApiModalStatus('已暫存 Gemini API key；將延遲自動測試一次，避免 Too many requests。');
   scheduleGeminiApiKeyAutoTest(value);
@@ -236,7 +268,7 @@ function setApiStatusFromError(e) {
 }
 
 function getGeminiApiKey(options = {}) {
-  geminiApiKey = sessionStorage.getItem(GEMINI_API_KEY_STORAGE) || geminiApiKey || '';
+  geminiApiKey = safeStorageGet(sessionStorage, GEMINI_API_KEY_STORAGE, '') || geminiApiKey || '';
   if (options.promptIfMissing && (options.force || (!geminiApiKey && !geminiApiKeyPrompted))) {
     geminiApiKeyPrompted = true;
     openApiKeyModal({ autofocus:true });
@@ -245,7 +277,7 @@ function getGeminiApiKey(options = {}) {
 }
 
 function promptForGeminiApiKey(force = false) {
-  const hasStoredKey = Boolean(sessionStorage.getItem(GEMINI_API_KEY_STORAGE));
+  const hasStoredKey = Boolean(safeStorageGet(sessionStorage, GEMINI_API_KEY_STORAGE, ''));
   if (!force && hasStoredKey) return;
   geminiApiKeyPrompted = true;
   openApiKeyModal({ autofocus:true });
@@ -254,7 +286,7 @@ function promptForGeminiApiKey(force = false) {
 function clearGeminiApiKey() {
   geminiApiKey = '';
   geminiApiKeyPrompted = false;
-  sessionStorage.removeItem(GEMINI_API_KEY_STORAGE);
+  safeStorageRemove(sessionStorage, GEMINI_API_KEY_STORAGE);
   clearTimeout(apiKeyAutoTestTimer);
   lastApiKeyTestFingerprint = '';
   lastApiKeyTestOk = false;
@@ -264,6 +296,14 @@ function clearGeminiApiKey() {
 async function testGeminiApiKey(options = {}) {
   const silent = Boolean(options.silent);
   const lightweight = options.lightweight !== false;
+  const mockMode = getGeminiMockMode();
+  if (mockMode) {
+    const result = mockGeminiApiKeyResult(mockMode);
+    setApiStatus(result.status);
+    if (!silent && result.message) showToast(result.message, result.ok ? 'ok' : 'warn');
+    return result;
+  }
+
   const apiKey = getGeminiApiKey({
     promptIfMissing: options.promptIfMissing !== false,
     force: Boolean(options.force)
@@ -320,9 +360,69 @@ async function testGeminiApiKey(options = {}) {
   }
 }
 
+function getGeminiMockMode() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mockGemini') || safeStorageGet(sessionStorage, 'poemlens_mock_gemini', '');
+    if (!['success', '429', '500', 'timeout'].includes(mode)) return '';
+    const localHost = ['localhost', '127.0.0.1', '::1', ''].includes(window.location.hostname);
+    return localHost ? mode : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function mockGeminiApiKeyResult(mode) {
+  if (mode === 'success') {
+    return { ok:true, status:'connected', text:'mock-gemini', message:'Mock Gemini 測試成功。' };
+  }
+  if (mode === '429') {
+    return { ok:false, status:'limited', code:429, message:'Mock Gemini 429 Too many requests' };
+  }
+  if (mode === 'timeout') {
+    return { ok:false, status:'local', message:'REQUEST_TIMEOUT：mock timeout' };
+  }
+  return { ok:false, status:'local', code:500, message:'Mock Gemini 500 server error' };
+}
+
+function mockGeminiGenerateResult(mode, requestOptions = {}) {
+  if (mode === '429') throw new Error('API 429：Mock Gemini Too many requests');
+  if (mode === 'timeout') throw new Error('REQUEST_TIMEOUT：mock timeout');
+  if (mode === '500') throw new Error('API 500：Mock Gemini server error');
+
+  const jsonMode = requestOptions.generationConfig?.responseMimeType === 'application/json';
+  const text = jsonMode
+    ? JSON.stringify({
+        title:'月下獨酌',
+        author:'李白',
+        dynasty:'唐',
+        fullText:'花間一壺酒\n獨酌無相親\n舉杯邀明月\n對影成三人',
+        variantNotes:[],
+        monologue:'明月不語，卻最知我孤懷；杯中有影，亦可作一時知己。',
+        semantic:{translation:'花間置酒獨飲，無人相伴，只好舉杯邀請明月，連同身影成為三人。', devices:['擬人','想像','五言古詩']},
+        emotion:{primary:'孤獨而豪放', intensity:'中高', analysis:'詩中孤獨並不低沉，而是把月與影化成陪伴，展現浪漫自遣。', modernEcho:'像深夜獨處時，仍替自己點一盞燈。'},
+        history:{context:'此詩寫詩人獨飲時以月影自伴，呈現李白式的浪漫與孤高。', source:'《李太白集》'}
+      })
+    : 'Mock 詩魂回應：此刻以測試回覆驗證流程，未呼叫真實 Gemini。';
+
+  return {
+    candidates:[{
+      content:{ parts:[{ text }] }
+    }]
+  };
+}
+
 // Gemini 偶爾會回 503 / 500；這類暫時性錯誤可以退避重試。
 // 429 通常是限流或配額不足，不在這裡連續重試，避免進一步消耗請求。
 async function callGeminiWithRetry(contents, maxRetries = 4, requestOptions = {}) {
+  const mockMode = getGeminiMockMode();
+  if (mockMode) {
+    await wait(80);
+    const result = mockGeminiGenerateResult(mockMode, requestOptions);
+    setApiStatus('connected');
+    return result;
+  }
+
   const apiKey = getGeminiApiKey({ promptIfMissing:true });
   if (!apiKey) throw new Error('API_KEY_MISSING');
 
@@ -1185,11 +1285,15 @@ function smoothFollowNewContent(el, options = {}) {
 function showPage(id, tab) {
   stopBrowserSpeech();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    t.classList.remove('active');
+    t.setAttribute('aria-selected', 'false');
+  });
 
   const page = document.getElementById(id);
   page.classList.add('active');
   tab.classList.add('active');
+  tab.setAttribute('aria-selected', 'true');
 
   if (id === 'p3') renderCollection();
 
@@ -1200,12 +1304,15 @@ function showPage(id, tab) {
 }
 
 // ══ 收藏 ══
-let collection = JSON.parse(localStorage.getItem('poemlens_col') || '[]');
+let collection = safeJsonParse(safeStorageGet(localStorage, 'poemlens_col', '[]'), []);
+if (!Array.isArray(collection)) collection = [];
 let currentPoem = {};
 
 function saveCol() {
-  localStorage.setItem('poemlens_col', JSON.stringify(collection));
-  document.getElementById('collect-badge').textContent = collection.length;
+  const ok = safeStorageSet(localStorage, 'poemlens_col', JSON.stringify(collection));
+  const badge = document.getElementById('collect-badge');
+  if (badge) badge.textContent = collection.length;
+  if (!ok) showToast('瀏覽器無法儲存收藏；可改用複製功能保留詩作。', 'warn');
 }
 
 async function copyCurrentPoem() {
@@ -1286,7 +1393,8 @@ function loadPoem(i) {
 }
 
 // 初始化
-document.getElementById('collect-badge').textContent = collection.length;
+const collectBadge = document.getElementById('collect-badge');
+if (collectBadge) collectBadge.textContent = collection.length;
 
 // ══ 頁面1：分析 ══
 function fill(t, btn) {
@@ -1511,7 +1619,7 @@ function render(r, options = {}) {
       <div class="chat-label">— 向 詩 魂 提 問 —</div>
       <div class="chat-messages" id="chat-messages"></div>
       <div class="chat-input-wrap">
-        <input class="chat-input" id="chat-input" placeholder="問詩人任何問題…"/>
+        <input class="chat-input" id="chat-input" aria-label="向詩魂提問" placeholder="問詩人任何問題…"/>
         <button class="chat-send" id="chat-send" type="button" data-action="send-chat">問 之</button>
       </div>
     </div>`;
@@ -1547,8 +1655,8 @@ function render(r, options = {}) {
 
 let poemResizeTimer = null;
 
-let poemFontSize = Number(localStorage.getItem('poemlens_poem_font_size_v141') || 20);
-let titleFontSize = Number(localStorage.getItem('poemlens_title_font_size_v141') || 34);
+let poemFontSize = Number(safeStorageGet(localStorage, 'poemlens_poem_font_size_v150', '20') || 20);
+let titleFontSize = Number(safeStorageGet(localStorage, 'poemlens_title_font_size_v150', '34') || 34);
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -1569,7 +1677,7 @@ function applyPoemFontSize() {
   const label = document.getElementById('poem-font-size-value');
   if (label) label.textContent = poemFontSize;
 
-  localStorage.setItem('poemlens_poem_font_size_v141', poemFontSize);
+  safeStorageSet(localStorage, 'poemlens_poem_font_size_v150', String(poemFontSize));
   fitPoemLayout();
 }
 
@@ -1589,7 +1697,7 @@ function applyTitleFontSize() {
   const label = document.getElementById('title-font-size-value');
   if (label) label.textContent = titleFontSize;
 
-  localStorage.setItem('poemlens_title_font_size_v141', titleFontSize);
+  safeStorageSet(localStorage, 'poemlens_title_font_size_v150', String(titleFontSize));
   fitPoemTitleLayout();
 }
 
@@ -1888,11 +1996,91 @@ function bindStaticEvents() {
   });
 }
 
+function setSmokeResult(status, detail = '') {
+  document.body.dataset.smokeStatus = status;
+  document.body.dataset.smokeDetail = detail;
+  let el = document.getElementById('smoke-result');
+  if (!el) {
+    el = document.createElement('pre');
+    el.id = 'smoke-result';
+    el.className = 'sr-only';
+    document.body.appendChild(el);
+  }
+  el.textContent = `${status}: ${detail}`;
+}
+
+function shouldRunReleaseSmoke() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('smoke')) return '';
+    const localHost = ['localhost', '127.0.0.1', '::1', ''].includes(window.location.hostname);
+    return localHost ? params.get('smoke') : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+async function runReleaseSmokeIfRequested() {
+  const smokeMode = shouldRunReleaseSmoke();
+  if (!smokeMode) return;
+
+  try {
+    setSmokeResult('running', smokeMode);
+    const data = await ensureLocalPoemDataLoaded();
+    if (!Array.isArray(data) || data.length !== 315) {
+      throw new Error(`poems.json count mismatch: ${Array.isArray(data) ? data.length : 'not-array'}`);
+    }
+
+    const requiredQueries = ['黃鶴樓送孟浩然之廣陵', '怨情', '琵琶行'];
+    for (const query of requiredQueries) {
+      const poem = await getLocalPoem(query, { loose:true });
+      if (!poem?.title || !poem?.fullText) throw new Error(`local query failed: ${query}`);
+    }
+
+    const localPoem = await getLocalPoem('黃鶴樓送孟浩然之廣陵', { loose:true });
+    render(localPoem, { source:'local' });
+    toggleSave();
+    if (!collection.length) throw new Error('collection save failed');
+    renderCollection();
+    showPage('p2', document.querySelector('.nav-tab[data-page="p2"]'));
+    if (!document.getElementById('p2')?.classList.contains('active')) throw new Error('page switch failed');
+    showPage('p3', document.querySelector('.nav-tab[data-page="p3"]'));
+    if (!document.getElementById('p3')?.classList.contains('active')) throw new Error('collection page failed');
+
+    if (smokeMode.startsWith('mock')) {
+      const result = await testGeminiApiKey({ silent:true, promptIfMissing:false, lightweight:true });
+      const mockKind = smokeMode.replace(/^mock-?/, '') || getGeminiMockMode();
+      if (mockKind === 'success' && !result.ok) throw new Error('mock success key test failed');
+      if (mockKind === '429' && result.code !== 429) throw new Error('mock 429 key test failed');
+
+      if (mockKind === 'success') {
+        const poem = await requestPoemJson('mock poem request', GEMINI_MODEL);
+        if (poem.title !== '月下獨酌') throw new Error('mock poem response failed');
+      } else {
+        try {
+          await callGeminiWithRetry([{ parts:[{ text:'mock failure request' }] }], 0);
+          throw new Error(`mock ${mockKind} unexpectedly succeeded`);
+        } catch (err) {
+          const msg = String(err?.message || err);
+          if (mockKind === '429' && !msg.includes('API 429')) throw err;
+          if (mockKind === '500' && !msg.includes('API 500')) throw err;
+          if (mockKind === 'timeout' && !msg.includes('REQUEST_TIMEOUT')) throw err;
+        }
+      }
+    }
+
+    setSmokeResult('pass', smokeMode);
+  } catch (err) {
+    setSmokeResult('fail', String(err?.message || err));
+    console.error('Release smoke failed:', err);
+  }
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   bindStaticEvents();
   if ('speechSynthesis' in window) window.speechSynthesis.getVoices?.();
 
-  const hadStoredKey = Boolean(sessionStorage.getItem(GEMINI_API_KEY_STORAGE));
+  const hadStoredKey = Boolean(safeStorageGet(sessionStorage, GEMINI_API_KEY_STORAGE, ''));
   setApiStatus(hadStoredKey ? 'connected' : 'local');
 
   // 有暫存 key 時先維持「已連線」視覺狀態，再用輕量模式背景確認一次。
@@ -1902,6 +2090,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       testGeminiApiKey({ silent:true, promptIfMissing:false, lightweight:true });
     }, 450);
   }
+
+  runReleaseSmokeIfRequested();
 });
 
 // ══ 頁面2：雙魂對話 ══
