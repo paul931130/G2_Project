@@ -4,17 +4,6 @@
   --bronze:#8b6f47;--bronze-light:#b89968;
   --vermilion:#a83232;--line:rgba(139,111,71,0.25);
 }
-.sr-only{
-  position:absolute;
-  width:1px;
-  height:1px;
-  padding:0;
-  margin:-1px;
-  overflow:hidden;
-  clip:rect(0,0,0,0);
-  white-space:nowrap;
-  border:0;
-}
 html{
   scroll-behavior:smooth;
   scroll-padding-top:24px;
@@ -769,7 +758,7 @@ body.loading-open{
 }
 
 
-/* v1.4.1 保留：橫排模式樣式；預設採直排伸縮 */
+/* 延續 v1.4.1：橫排模式樣式；預設採直排伸縮 */
 .poem-text-wrap.layout-horizontal{
   justify-content:flex-start;
   align-items:flex-start;
@@ -1339,7 +1328,7 @@ body.loading-open{
 }
 
 
-/* ══ v1.4.1：閱讀字級放大，改善桌機與手機可讀性 ══ */
+/* ══ 延續 v1.4.1：閱讀字級放大，改善桌機與手機可讀性 ══ */
 #poem-input{font-size:18px}
 #poem-input::placeholder{font-size:15px}
 .ex-btn{font-size:15px}
@@ -1376,7 +1365,7 @@ body.loading-open{
 }
 
 
-/* ══ v1.4.1：原詩白框垂直伸縮，長詩維持直排閱讀 ══ */
+/* ══ 延續 v1.4.1：原詩白框垂直伸縮，長詩維持直排閱讀 ══ */
 .poem-original-panel{
   justify-content:flex-start;
 }
