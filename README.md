@@ -29,6 +29,7 @@
     ├── FINAL_REPORT.md      # 期末專題報告
     ├── DEMO_VIDEO_SCRIPT.md # Demo 影片與現場展示腳本
     └── SOUL.md              # 詩魂人格與設計原則
+```
 
 ## 使用方式
 
