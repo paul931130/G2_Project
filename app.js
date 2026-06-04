@@ -666,13 +666,13 @@ function extractLibraryTranslation(item) {
 }
 
 function extractLibraryAnalysis(item) {
-  return cleanPoemLibraryText(firstLibraryText(item.analyses, { chineseOnly: true }), 180);
+  return cleanPoemLibraryText(firstLibraryText(item.analyses, { chineseOnly: true }), 10000);
 }
 
 function extractLibraryHistory(item) {
   const raw = firstLibraryText(item.others, { prefer: /創作背景/u, chineseOnly: true });
   if (!raw || isMostlyEnglishText(raw)) return '';
-  return cleanPoemLibraryText(raw, 180);
+  return cleanPoemLibraryText(raw, 10000);
 }
 
 function inferLibraryDevices(item) {
